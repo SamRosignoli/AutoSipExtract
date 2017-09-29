@@ -1,6 +1,7 @@
 package br.com.nissan.main;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.HashMap;
@@ -10,6 +11,10 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.filechooser.FileSystemView;
+
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.remote.CapabilityType;
+import org.openqa.selenium.remote.DesiredCapabilities;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -29,8 +34,9 @@ public class Main {
 
 		cargas = new HashMap<>();
 		cargas.clear();
-		
+
 		// Olá sidão
+		// Olá sidão 02
 		WebDriver driver = null;
 
 		String tituloMessage = "Selenium SIP Download";
@@ -52,6 +58,7 @@ public class Main {
 			// Iteração em todas as concesionárias existentes no Select da página para
 			// baixar o arquivo analítico
 			// Ignora a opção 33 - Nissan
+			// Ignora a opção 1 - SIP Nissan
 			// Somente exporta os dados das concessionárias
 			WebElement comboDealers = driver.findElement(By.id("formEmp:empresa"));
 			List<WebElement> list = comboDealers.findElements(By.tagName("option"));
@@ -81,39 +88,56 @@ public class Main {
 						cargas.put(codDealer, dtHrArquivo);
 
 						// clica em pesquisar
-						WebElement pesquisar = driver.findElement(By.id("formE:modelButton"))
-								.findElements(By.tagName("a")).get(3);
+						WebElement pesquisar = driver.findElement(By.id("formE:modelButton")).findElements(By.tagName("a")).get(3);
 						pesquisar.click();
 						Thread.sleep(5000);
 
+						//
+						WebElement ScrollDetalhe = driver.findElement(By.id("formE:vlrDetalhe_toggler"));
+						((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", ScrollDetalhe);
+						Thread.sleep(500);
+
+						WebElement aDetalhe = driver.findElement(By.id("formE:vlrDetalhe_toggler"));
+						aDetalhe.findElement(By.tagName("span")).click();
+						Thread.sleep(500);
+
+						WebElement ScrollFilial = driver.findElement(By.id("formE:filial_toggler"));
+						((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", ScrollFilial);
+						Thread.sleep(1000);
+
+						WebElement imgSave = driver.findElement(By.id("formE:j_idt945"));
+						imgSave.click();
+						Thread.sleep(5000);
+
+						/*
+						 * driver.get("chrome://settings/advanced"); JavascriptExecutor js = (JavascriptExecutor) driver; String prefId = "download.default_directory"; File tempDir=new File(System.getProperty("user.dir")+"\\Downloads\\"); if
+						 * (driver.findElements(By.xpath(String.format(".//input[@pref='%s']", prefId))).size() == 0) { driver.get("chrome://settings-frame"); driver.findElement(By.xpath(".//button[@id='advanced-settings-expander']")).click(); }
+						 * String tmpDirEscapedPath = tempDir.getCanonicalPath().replace("\\", "\\\\"); js.executeScript(String.format("Preferences.setStringPref('%s', '%s', true)", prefId, tmpDirEscapedPath));
+						 */
+
+						// new File("D:\\LocalData\\xl02926\\Downloads\\DWAna0002601450_Gerar.xls").renameTo(new File("Z:\\Relatório de Cobertura\\AutoSipExtract\\Extraction\\" + descDealer + ".xls"));
 					}
 
 				}
 
 			}
 
-			JOptionPane.showMessageDialog(null, "Arquivo final do SIP gerado com sucesso!", tituloMessage,
-					JOptionPane.INFORMATION_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Arquivo final do SIP gerado com sucesso!", tituloMessage, JOptionPane.INFORMATION_MESSAGE);
 
 		} catch (TimeoutException e) {
-			JOptionPane.showMessageDialog(null, "Erro de tempo de espera excedido: " + e.getMessage(), tituloMessage,
-					JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Erro de tempo de espera excedido: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} catch (NoSuchElementException e) {
-			JOptionPane.showMessageDialog(null, "Erro ao tentar encontrar um elemento na página do SIP", tituloMessage,
-					JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Erro ao tentar encontrar um elemento na página do SIP", tituloMessage, JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} catch (ParseException e) {
-			JOptionPane.showMessageDialog(null,
-					"Erro ao tentar ler a Data/Hora de carga do arquivo no dealer " + codDealer + " - " + descDealer,
-					tituloMessage, JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Erro ao tentar ler a Data/Hora de carga do arquivo no dealer " + codDealer + " - " + descDealer, tituloMessage, JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} catch (Exception e) {
-			JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage,
-					JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} finally {
@@ -134,18 +158,48 @@ public class Main {
 	 * Opções para abertura do browser. Ex.: abrir já maximizado
 	 * 
 	 * @return
+	 * @throws Exception 
 	 */
-	private static ChromeOptions getChromeOptions() {
+	private static ChromeOptions getChromeOptions() throws Exception {
+
+		String downloadFilepath = checkDir();
+
 		ChromeOptions chromeOptions = new ChromeOptions();
 		chromeOptions.addArguments("--start-maximized");
+
+		HashMap<String, Object> chromePrefs = new HashMap<String, Object>();
+		chromePrefs.put("profile.default_content_settings.popups", 0);
+		chromePrefs.put("download.default_directory", downloadFilepath);
+		chromeOptions.setExperimentalOption("prefs", chromePrefs);
+		DesiredCapabilities cap = DesiredCapabilities.chrome();
+		cap.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
+		cap.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
+
 		return chromeOptions;
+
+	}
+
+	private static String checkDir() throws Exception {
+	
+		String downloadFilepath = System.getProperty("user.home");
+
+		File theDir = new File(downloadFilepath + "\\Sip Extract");
+
+		// if the directory does not exist, create it
+		if (!theDir.exists()) {
+			try {
+				theDir.mkdirs();
+			} catch (Exception ex) {
+				throw new Exception("Erro ao criar o diretório de extração dos arquivos SIP.");
+			}
+
+		}
+		
+		return downloadFilepath;
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários
-	 * existentes para a concessionária em questão. Se achar em qualquer um deles já
-	 * retornar, não vai até o fim. Se não teve carga para nenhum dos usuários,
-	 * estão retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão. Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga para nenhum dos usuários, estão retorna null.
 	 * 
 	 * @param driver
 	 * @return Date
@@ -190,8 +244,7 @@ public class Main {
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo considerando o usupário atualmente
-	 * selecionado. Se não teve carga para o usuário selecionado retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo considerando o usupário atualmente selecionado. Se não teve carga para o usuário selecionado retorna null.
 	 * 
 	 * @param driver
 	 * @param optU
@@ -202,8 +255,7 @@ public class Main {
 	private static Date tryGetDataHoraByUser(WebDriver driver) throws InterruptedException, ParseException {
 
 		// Acessa o Analítico e aguarda carregar
-		driver.get(
-				"http://sipnissan.com.br/Sip/jsf_pages/automobilistico/autAnalitico/autAnalitico.jsf?apenasPesquisa=false");
+		driver.get("http://sipnissan.com.br/Sip/jsf_pages/automobilistico/autAnalitico/autAnalitico.jsf?apenasPesquisa=false");
 		Thread.sleep(2000);
 
 		// pega a div que contem o form planejamento
@@ -226,8 +278,7 @@ public class Main {
 	}
 
 	/**
-	 * Abre caixa de diálogo para pedir o Driver ao Usuário. Se não selecionar o
-	 * correto, pega do caminho padrão que está na rede.
+	 * Abre caixa de diálogo para pedir o Driver ao Usuário. Se não selecionar o correto, pega do caminho padrão que está na rede.
 	 * 
 	 * @return
 	 */
