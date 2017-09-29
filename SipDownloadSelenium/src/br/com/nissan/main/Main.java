@@ -11,8 +11,6 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.filechooser.FileSystemView;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.openqa.selenium.By;
@@ -31,7 +29,8 @@ public class Main {
 
 		cargas = new HashMap<>();
 		cargas.clear();
-
+		
+		// Olá sidão
 		WebDriver driver = null;
 
 		String tituloMessage = "Selenium SIP Download";
@@ -50,7 +49,8 @@ public class Main {
 			login(driver);
 			Thread.sleep(5000);
 
-			// Iteração em todas as concesionárias existentes no Select da página para baixar o arquivo analítico
+			// Iteração em todas as concesionárias existentes no Select da página para
+			// baixar o arquivo analítico
 			// Ignora a opção 33 - Nissan
 			// Somente exporta os dados das concessionárias
 			WebElement comboDealers = driver.findElement(By.id("formEmp:empresa"));
@@ -81,7 +81,8 @@ public class Main {
 						cargas.put(codDealer, dtHrArquivo);
 
 						// clica em pesquisar
-						WebElement pesquisar = driver.findElement(By.id("formE:modelButton")).findElements(By.tagName("a")).get(3);
+						WebElement pesquisar = driver.findElement(By.id("formE:modelButton"))
+								.findElements(By.tagName("a")).get(3);
 						pesquisar.click();
 						Thread.sleep(5000);
 
@@ -91,22 +92,28 @@ public class Main {
 
 			}
 
-			JOptionPane.showMessageDialog(null, "Arquivo final do SIP gerado com sucesso!", tituloMessage, JOptionPane.INFORMATION_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Arquivo final do SIP gerado com sucesso!", tituloMessage,
+					JOptionPane.INFORMATION_MESSAGE);
 
 		} catch (TimeoutException e) {
-			JOptionPane.showMessageDialog(null, "Erro de tempo de espera excedido: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Erro de tempo de espera excedido: " + e.getMessage(), tituloMessage,
+					JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} catch (NoSuchElementException e) {
-			JOptionPane.showMessageDialog(null, "Erro ao tentar encontrar um elemento na página do SIP", tituloMessage, JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Erro ao tentar encontrar um elemento na página do SIP", tituloMessage,
+					JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} catch (ParseException e) {
-			JOptionPane.showMessageDialog(null, "Erro ao tentar ler a Data/Hora de carga do arquivo no dealer " + codDealer + " - " + descDealer, tituloMessage, JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null,
+					"Erro ao tentar ler a Data/Hora de carga do arquivo no dealer " + codDealer + " - " + descDealer,
+					tituloMessage, JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} catch (Exception e) {
-			JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage,
+					JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} finally {
@@ -124,8 +131,8 @@ public class Main {
 	}
 
 	/**
-	 * Opções para abertura do browser.
-	 * Ex.: abrir já maximizado
+	 * Opções para abertura do browser. Ex.: abrir já maximizado
+	 * 
 	 * @return
 	 */
 	private static ChromeOptions getChromeOptions() {
@@ -135,8 +142,10 @@ public class Main {
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão. Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga
-	 * para nenhum dos usuários, estão retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários
+	 * existentes para a concessionária em questão. Se achar em qualquer um deles já
+	 * retornar, não vai até o fim. Se não teve carga para nenhum dos usuários,
+	 * estão retorna null.
 	 * 
 	 * @param driver
 	 * @return Date
@@ -181,7 +190,8 @@ public class Main {
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo considerando o usupário atualmente selecionado. Se não teve carga para o usuário selecionado retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo considerando o usupário atualmente
+	 * selecionado. Se não teve carga para o usuário selecionado retorna null.
 	 * 
 	 * @param driver
 	 * @param optU
@@ -192,7 +202,8 @@ public class Main {
 	private static Date tryGetDataHoraByUser(WebDriver driver) throws InterruptedException, ParseException {
 
 		// Acessa o Analítico e aguarda carregar
-		driver.get("http://sipnissan.com.br/Sip/jsf_pages/automobilistico/autAnalitico/autAnalitico.jsf?apenasPesquisa=false");
+		driver.get(
+				"http://sipnissan.com.br/Sip/jsf_pages/automobilistico/autAnalitico/autAnalitico.jsf?apenasPesquisa=false");
 		Thread.sleep(2000);
 
 		// pega a div que contem o form planejamento
@@ -215,7 +226,8 @@ public class Main {
 	}
 
 	/**
-	 * Abre caixa de diálogo para pedir o Driver ao Usuário. Se não selecionar o correto, pega do caminho padrão que está na rede.
+	 * Abre caixa de diálogo para pedir o Driver ao Usuário. Se não selecionar o
+	 * correto, pega do caminho padrão que está na rede.
 	 * 
 	 * @return
 	 */
@@ -236,7 +248,8 @@ public class Main {
 
 		String driverPath = f != null ? f.getAbsolutePath() : "";
 
-		// Pega o caminho padrão do driver na rede se não selecionou o correto >>>> Z:\SISTEMAS\Troca de Arquivos\WebDriver
+		// Pega o caminho padrão do driver na rede se não selecionou o correto >>>>
+		// Z:\SISTEMAS\Troca de Arquivos\WebDriver
 		if (driverPath == null || !driverPath.endsWith("chromedriver.exe")) {
 			driverPath = "Z:\\SISTEMAS\\Troca de Arquivos\\WebDriver\\chromedriver.exe";
 		}
