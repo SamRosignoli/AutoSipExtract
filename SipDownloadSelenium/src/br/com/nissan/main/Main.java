@@ -2,6 +2,7 @@ package br.com.nissan.main;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.HashMap;
@@ -30,13 +31,12 @@ public class Main {
 
 	private static HashMap<String, Date> cargas;
 
+	private static String downloadFilepath;
+
 	public static void main(String[] args) {
 
 		cargas = new HashMap<>();
 		cargas.clear();
-
-		// Olá sidão
-		// Olá sidão 02
 		WebDriver driver = null;
 
 		String tituloMessage = "Selenium SIP Download";
@@ -44,6 +44,12 @@ public class Main {
 		String descDealer = "";
 
 		try {
+
+			// Verifica se o diretório já existe, caso contrário cria um novo
+			downloadFilepath = checkDir();
+
+			// deletar todos os arquivos existentes na pasta
+			deleteActualfiles();
 
 			String driverPath = getDriver();
 			System.setProperty("webdriver.chrome.driver", driverPath);
@@ -55,7 +61,7 @@ public class Main {
 			login(driver);
 			Thread.sleep(5000);
 
-			// Iteração em todas as concesionárias existentes no Select da página para
+			// Iteração em todas as concessionárias existentes no Select da página para
 			// baixar o arquivo analítico
 			// Ignora a opção 33 - Nissan
 			// Ignora a opção 1 - SIP Nissan
@@ -67,9 +73,13 @@ public class Main {
 				codDealer = optC.getAttribute("value");
 				descDealer = optC.getText();
 
+				// -----------
+				if (!"105".equalsIgnoreCase(codDealer)) {
+					continue;
+				}
+
 				// ignora se for Nissan
 				if (!StringUtils.equalsIgnoreCase(codDealer, "33") && !StringUtils.equalsIgnoreCase(codDealer, "1")) {
-
 					// Seleciona a concessionária e aguarda carregar
 					optC.click();
 					Thread.sleep(3000);
@@ -90,7 +100,7 @@ public class Main {
 						// clica em pesquisar
 						WebElement pesquisar = driver.findElement(By.id("formE:modelButton")).findElements(By.tagName("a")).get(3);
 						pesquisar.click();
-						Thread.sleep(5000);
+						Thread.sleep(10000);
 
 						//
 						WebElement ScrollDetalhe = driver.findElement(By.id("formE:vlrDetalhe_toggler"));
@@ -107,15 +117,34 @@ public class Main {
 
 						WebElement imgSave = driver.findElement(By.id("formE:j_idt945"));
 						imgSave.click();
-						Thread.sleep(5000);
+						Thread.sleep(3000);
 
-						/*
-						 * driver.get("chrome://settings/advanced"); JavascriptExecutor js = (JavascriptExecutor) driver; String prefId = "download.default_directory"; File tempDir=new File(System.getProperty("user.dir")+"\\Downloads\\"); if
-						 * (driver.findElements(By.xpath(String.format(".//input[@pref='%s']", prefId))).size() == 0) { driver.get("chrome://settings-frame"); driver.findElement(By.xpath(".//button[@id='advanced-settings-expander']")).click(); }
-						 * String tmpDirEscapedPath = tempDir.getCanonicalPath().replace("\\", "\\\\"); js.executeScript(String.format("Preferences.setStringPref('%s', '%s', true)", prefId, tmpDirEscapedPath));
-						 */
 
 						// new File("D:\\LocalData\\xl02926\\Downloads\\DWAna0002601450_Gerar.xls").renameTo(new File("Z:\\Relatório de Cobertura\\AutoSipExtract\\Extraction\\" + descDealer + ".xls"));
+
+						File folder = new File(downloadFilepath);
+						File[] listOfFiles = folder.listFiles();
+						for (File f : listOfFiles) {
+							if (f.isFile()) {
+								
+								String fName = f.getName();
+								System.out.println("File " + fName);
+								
+								if("DWA".equalsIgnoreCase(StringUtils.left(fName, 3))) {
+									File oldFile = new File(downloadFilepath + "\\" +fName);
+									File newFile = new File(downloadFilepath + "\\" + descDealer + ".xls");
+									oldFile.renameTo(newFile);
+									//usar newFile com poi
+									oldFile.delete();
+									// alterar o nome
+									// incluir coluna na direita
+									// salvar
+								}
+								
+								
+							}
+						}
+
 					}
 
 				}
@@ -154,15 +183,18 @@ public class Main {
 
 	}
 
+	private static void deleteActualfiles() {
+		// TODO - deletar todos os arquivos existentes na pasta
+
+	}
+
 	/**
 	 * Opções para abertura do browser. Ex.: abrir já maximizado
 	 * 
 	 * @return
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	private static ChromeOptions getChromeOptions() throws Exception {
-
-		String downloadFilepath = checkDir();
 
 		ChromeOptions chromeOptions = new ChromeOptions();
 		chromeOptions.addArguments("--start-maximized");
@@ -179,8 +211,14 @@ public class Main {
 
 	}
 
+	/**
+	 * Verifica se o diretório já existe, caso contrário cria um novo
+	 * 
+	 * @return
+	 * @throws Exception
+	 */
 	private static String checkDir() throws Exception {
-	
+
 		String downloadFilepath = System.getProperty("user.home");
 
 		File theDir = new File(downloadFilepath + "\\Sip Extract");
@@ -194,8 +232,11 @@ public class Main {
 			}
 
 		}
-		
-		return downloadFilepath;
+
+		String absolutePath = theDir.getAbsolutePath();
+
+		return absolutePath;
+
 	}
 
 	/**
