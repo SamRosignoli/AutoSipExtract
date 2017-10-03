@@ -1,9 +1,8 @@
 package br.com.nissan.main;
 
 import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -13,31 +12,29 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.filechooser.FileSystemView;
 
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.remote.CapabilityType;
-import org.openqa.selenium.remote.DesiredCapabilities;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.CapabilityType;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
+import br.com.nissan.domain.Concessionaria;
+import br.com.nissan.domain.User;
 
 public class Main {
 
-	private static HashMap<String, Date> cargas;
+	private static WebDriver driver = null;
 
 	private static String downloadFilepath;
 
 	public static void main(String[] args) {
-
-		cargas = new HashMap<>();
-		cargas.clear();
-		WebDriver driver = null;
 
 		String tituloMessage = "Selenium SIP Download";
 		String codDealer = "";
@@ -48,45 +45,61 @@ public class Main {
 			// Verifica se o diretório já existe, caso contrário cria um novo
 			downloadFilepath = checkDir();
 
-			// deletar todos os arquivos existentes na pasta
+			// deleta todos os arquivos existentes na pasta sempre que executar uma nova rodada
 			deleteActualfiles();
 
-			String driverPath = getDriver();
+			String driverPath = getDriverPath();
 			System.setProperty("webdriver.chrome.driver", driverPath);
 
 			// abre o Chrome já com as opções configuradas (Ex.: maximizado)
 			driver = new ChromeDriver(getChromeOptions());
 
 			// faz o login
-			login(driver);
+			login();
 			Thread.sleep(5000);
 
-			// Iteração em todas as concessionárias existentes no Select da página para
-			// baixar o arquivo analítico
-			// Ignora a opção 33 - Nissan
-			// Ignora a opção 1 - SIP Nissan
-			// Somente exporta os dados das concessionárias
-			WebElement comboDealers = driver.findElement(By.id("formEmp:empresa"));
-			List<WebElement> list = comboDealers.findElements(By.tagName("option"));
-			for (WebElement optC : list) {
+			// Iteração em todas as concessionárias existentes no Select da página para baixar o arquivo analítico
+			// Já que no Selenium não é possível acessar um WebElement depois de um refresh na página em uma iteração, guarda o Set de concessionárias antes para conseguir iterar depois.
+			List<Concessionaria> set = optionsToDealerList();
+			int ct = 0;
+			for (Concessionaria conc : set) {
 
-				codDealer = optC.getAttribute("value");
-				descDealer = optC.getText();
+				codDealer = conc.getCodigo();
+				descDealer = conc.getDescricao();
+				int idxDealer = conc.getIndex();
 
-				// -----------
-				if (!"105".equalsIgnoreCase(codDealer)) {
+				// debug do samuca -----------
+				/*if (!"105".equalsIgnoreCase(codDealer)) {
 					continue;
-				}
+				}*/
 
-				// ignora se for Nissan
+				// ignora se for a opção '33 - Nissan' ou a opção '1 - SIP Nissan'
 				if (!StringUtils.equalsIgnoreCase(codDealer, "33") && !StringUtils.equalsIgnoreCase(codDealer, "1")) {
+					
+					if(ct>0) {
+						// para trocar de concessionária tem de obrigatoriamente clicar na home do SIP antes
+						driver.findElement(By.id("j_idt29:j_idt30")).click();
+						Thread.sleep(3000);
+					}
+					
+					ct++;
+
+					WebElement comboDealers = driver.findElement(By.id("formEmp:empresa"));
+					WebElement optC = comboDealers.findElements(By.tagName("option")).get(idxDealer);
+
+					String codigo = StringUtils.trim(optC.getAttribute("value"));
+					System.out.println("debug checking codigo >>> " + codigo.equalsIgnoreCase(codDealer));
+
+					String descricao = StringUtils.trim(optC.getText());
+					System.out.println("check checking descricao >>> " + descricao.equalsIgnoreCase(descDealer));
+
 					// Seleciona a concessionária e aguarda carregar
 					optC.click();
 					Thread.sleep(3000);
 
 					// Seleciona o usuário e Pega a Data/Hora da Carga do Arquivo
 					// vai tentando até o último usuário, se não tiver retorna nulo/vazio
-					Date dtHrArquivo = getDataHoraCargaArquivo(driver);
+					Date dtHrArquivo = getDataHoraCargaArquivo();
 					Thread.sleep(3000);
 
 					// Se não teve carga de arquivo, ignora e parte para o próximo
@@ -94,8 +107,6 @@ public class Main {
 
 						String fileStr = descDealer + ".xls";
 						System.out.println(fileStr);
-
-						cargas.put(codDealer, dtHrArquivo);
 
 						// clica em pesquisar
 						WebElement pesquisar = driver.findElement(By.id("formE:modelButton")).findElements(By.tagName("a")).get(3);
@@ -119,29 +130,25 @@ public class Main {
 						imgSave.click();
 						Thread.sleep(3000);
 
-
-						// new File("D:\\LocalData\\xl02926\\Downloads\\DWAna0002601450_Gerar.xls").renameTo(new File("Z:\\Relatório de Cobertura\\AutoSipExtract\\Extraction\\" + descDealer + ".xls"));
-
 						File folder = new File(downloadFilepath);
 						File[] listOfFiles = folder.listFiles();
 						for (File f : listOfFiles) {
 							if (f.isFile()) {
-								
+
 								String fName = f.getName();
 								System.out.println("File " + fName);
-								
-								if("DWA".equalsIgnoreCase(StringUtils.left(fName, 3))) {
-									File oldFile = new File(downloadFilepath + "\\" +fName);
+
+								if ("DWA".equalsIgnoreCase(StringUtils.left(fName, 3))) {
+									File oldFile = new File(downloadFilepath + "\\" + fName);
 									File newFile = new File(downloadFilepath + "\\" + descDealer + ".xls");
 									oldFile.renameTo(newFile);
-									//usar newFile com poi
+									// usar newFile com poi
 									oldFile.delete();
 									// alterar o nome
 									// incluir coluna na direita
 									// salvar
 								}
-								
-								
+
 							}
 						}
 
@@ -183,9 +190,40 @@ public class Main {
 
 	}
 
-	private static void deleteActualfiles() {
-		// TODO - deletar todos os arquivos existentes na pasta
+	/**
+	 * Salva todas as opções do combo de Dealers em um List para possibilitar a iteração em cada option depois.
+	 * 
+	 * Não permite repetidos / Usa List para garantir a ordem dos itens na lista.
+	 * 
+	 * @return HashSet com os objetos Concessionaria
+	 */
+	private static ArrayList<Concessionaria> optionsToDealerList() {
 
+		ArrayList<Concessionaria> list = new ArrayList<Concessionaria>();
+
+		WebElement comboDealers = driver.findElement(By.id("formEmp:empresa"));
+
+		List<WebElement> listOptions = comboDealers.findElements(By.tagName("option"));
+
+		int ct = 0;
+		for (WebElement option : listOptions) {
+
+			String codigo = StringUtils.trim(option.getAttribute("value"));
+			String descricao = StringUtils.trim(option.getText());
+			int index = ct++;
+
+			Concessionaria c = new Concessionaria(codigo, descricao, index);
+			if (!list.contains(c)) {
+				list.add(c);
+			}
+
+		}
+
+		return list;
+	}
+
+	private static void deleteActualfiles() {
+		// TODO - deletar todos os arquivos existentes na pasta para não dar pau na lógica em produção
 	}
 
 	/**
@@ -212,10 +250,13 @@ public class Main {
 	}
 
 	/**
-	 * Verifica se o diretório já existe, caso contrário cria um novo
+	 * Verifica se o diretório já existe, caso contrário cria um novo na pasta raiz do usuáriuo.
 	 * 
-	 * @return
+	 * Ex.: D:\LocalData\x888541\Sip Extract
+	 * 
+	 * @return String com o path do diretório criado/já existente
 	 * @throws Exception
+	 *             lança uma Exception caso não consiga criar o diretório no SO.
 	 */
 	private static String checkDir() throws Exception {
 
@@ -228,7 +269,7 @@ public class Main {
 			try {
 				theDir.mkdirs();
 			} catch (Exception ex) {
-				throw new Exception("Erro ao criar o diretório de extração dos arquivos SIP.");
+				throw new Exception("Não foi possível criar o diretório para extração dos arquivos SIP >>> " + ex.getMessage());
 			}
 
 		}
@@ -240,48 +281,95 @@ public class Main {
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão. Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga para nenhum dos usuários, estão retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão. Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga
+	 * para nenhum dos usuários, estão retorna null.
+	 * 
+	 * @param conc
 	 * 
 	 * @param driver
 	 * @return Date
 	 * @throws InterruptedException
 	 * @throws ParseException
 	 */
-	private static Date getDataHoraCargaArquivo(WebDriver driver) throws InterruptedException, ParseException {
+	private static Date getDataHoraCargaArquivo() throws InterruptedException, ParseException {
 
-		// Pega o combo com os usuários
-		WebElement comboUsuarios = driver.findElement(By.id("formEmp:usuario"));
+		List<User> users = optionsToUserList();
 
-		// Tenta pegar a data/hora da carga do arquivo em cada um
-		List<WebElement> listU = comboUsuarios.findElements(By.tagName("option"));
-		for (WebElement optU : listU) {
+		int ct = 0;
+		for (User u : users) {
 
-			String vU = "";
-			while (StringUtils.isEmpty(vU)) {
-				try {
-					vU = optU.getAttribute("value");
-				} catch (org.openqa.selenium.StaleElementReferenceException e) {
-				}
-			}
+			String codigo = u.getCodigo();
+			String nome = u.getNome();
+			int index = u.getIndex();
 
 			// ignora a opção '0'
-			if (!StringUtils.equalsIgnoreCase(vU, "0")) {
+			if (!StringUtils.equalsIgnoreCase(codigo, "0")) {
+				
+				if(ct>0) {
+					// para trocar de usuário tem de obrigatoriamente clicar na home do SIP antes
+					driver.findElement(By.id("j_idt29:j_idt30")).click();
+					Thread.sleep(3000);
+				}
+
+				System.out.println("Tentativa de pegar e Data/Hora da Carga com o seguinte usuário: " + codigo + " - " + nome);
+
+				WebElement comboUsuarios = driver.findElement(By.id("formEmp:usuario"));
+				WebElement optU = comboUsuarios.findElements(By.tagName("option")).get(index);
+
+				String vU = optU.getAttribute("value");
+				System.out.println("debug checking codigo user >>> " + vU.equalsIgnoreCase(codigo));
 
 				// seleciona o usuário
 				optU.click();
 				Thread.sleep(3000);
 
-				// Tenta achar a data e se achar já retorna
-				Date dataHoraArquivo = tryGetDataHoraByUser(driver);
+				// Tenta achar a data e se achar já retorna, não vai para o próximo
+				Date dataHoraArquivo = tryToGetDataHoraByUser();
 				if (dataHoraArquivo != null) {
 					return dataHoraArquivo;
 				}
+				
+				ct++;
 
 			}
 
 		}
 
 		return null;
+		
+	}
+
+	/**
+	 * Salva todas as opções do combo de Users em um List para possibilitar a iteração em cada option depois.
+	 * 
+	 * Não permite repetidos / Usa List para garantir a ordem dos itens na lista.
+	 * 
+	 * @return
+	 */
+	private static List<User> optionsToUserList() {
+
+		ArrayList<User> list = new ArrayList<User>();
+
+		WebElement comboUsuarios = driver.findElement(By.id("formEmp:usuario"));
+
+		List<WebElement> userOptions = comboUsuarios.findElements(By.tagName("option"));
+		
+		int ct = 0;
+		for (WebElement opt : userOptions) {
+
+			String codigo = StringUtils.trim(opt.getAttribute("value"));
+			String nome = StringUtils.trim(opt.getText());
+			int index = ct++;
+
+			User u = new User(codigo, nome, index);
+			if (!list.contains(u)) {
+				list.add(u);
+			}
+
+		}
+
+		return list;
+
 	}
 
 	/**
@@ -293,7 +381,7 @@ public class Main {
 	 * @throws InterruptedException
 	 * @throws ParseException
 	 */
-	private static Date tryGetDataHoraByUser(WebDriver driver) throws InterruptedException, ParseException {
+	private static Date tryToGetDataHoraByUser() throws InterruptedException, ParseException {
 
 		// Acessa o Analítico e aguarda carregar
 		driver.get("http://sipnissan.com.br/Sip/jsf_pages/automobilistico/autAnalitico/autAnalitico.jsf?apenasPesquisa=false");
@@ -323,7 +411,7 @@ public class Main {
 	 * 
 	 * @return
 	 */
-	private static String getDriver() {
+	private static String getDriverPath() {
 
 		JFileChooser fc = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
 		fc.setDialogTitle("Selecione o Driver do Google Chrome >>> 'chromedriver.exe'");
@@ -342,6 +430,7 @@ public class Main {
 
 		// Pega o caminho padrão do driver na rede se não selecionou o correto >>>>
 		// Z:\SISTEMAS\Troca de Arquivos\WebDriver
+		// FIXME - Hard Code do mal!!!!
 		if (driverPath == null || !driverPath.endsWith("chromedriver.exe")) {
 			driverPath = "Z:\\SISTEMAS\\Troca de Arquivos\\WebDriver\\chromedriver.exe";
 		}
@@ -356,7 +445,7 @@ public class Main {
 	 * @param driver
 	 * @throws InterruptedException
 	 */
-	private static void login(WebDriver driver) throws InterruptedException {
+	private static void login() throws InterruptedException {
 
 		String url = "http://sipnissan.com.br/Sip/login.jsf";
 		String user = "srodrigues";
