@@ -75,9 +75,9 @@ public class Excel {
 
 			FileOutputStream out = new FileOutputStream(newFile);
 			wk.write(out);
+			wk.close();
 			out.flush();
 			out.close();
-			wk.close();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
