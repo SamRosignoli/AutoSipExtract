@@ -81,7 +81,7 @@ public class Excel {
 
 					HSSFRow hRow = ws.getRow(0);
 					HSSFCell cell = hRow.getCell(countCol);
-					String hContent = cell.getStringCellValue();
+					String hContent = cell.getStringCellValue(); // FIXME - tem que fazer tratamento em tudo o que ler do excel - Ex.: retirar espações e caracteres não imprimiveis
 					System.out.println(hContent);
 					sb.append(hContent);
 					sb.append(";");
@@ -89,7 +89,7 @@ public class Excel {
 						sb.append("Data e hora da carga");
 						sb.append(";");
 						sb.append("Bloqueado");
-						sb.append("\n");
+						sb.append("\n"); // FIXME - ver melhor forma de gerar a quebra de linha
 					}
 					countCol = countCol + 1;
 				}
@@ -110,7 +110,7 @@ public class Excel {
 
 				DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
-				cellDtHr.setCellValue(df.format(dtHrArquivo));
+				cellDtHr.setCellValue(df.format(dtHrArquivo)); 
 
 				// check se tem bloqueio
 				cellBloqCheck = r.getCell(colCheckBloq);
@@ -132,7 +132,7 @@ public class Excel {
 					cell.setCellType(CellType.STRING);
 					String hContent = cell.getStringCellValue();
 					System.out.println(hContent);
-					sb.append(hContent);
+					sb.append(hContent); // FIXME - tem que fazer tratamento em tudo o que ler do excel - Ex.: retirar espações e caracteres não imprimiveis
 					if (countCol + 1 == colNum + 2) {
 						sb.append("\n"); // FIXME - tem de achar uma maneira melhor de fazer a quebra de linha
 					} else {
