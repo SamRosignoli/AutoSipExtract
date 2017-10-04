@@ -2,7 +2,9 @@ package br.com.nissan.infra;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -23,18 +25,42 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class Excel {
 
+	private StringBuilder sb;
+	
+	private PrintWriter pw;
+	
+	private boolean header = false;
+	
+	private static String csvPath;
+
+	// ParseException
+	// FileNotFoundException
 	public static void main(String[] args) throws ParseException {
 
-		File newFile = new File("C:\\Users\\Sidney Rodrigues\\Sip Extract\\APPLAUSO - 105.xls");
+		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APPLAUSO - 105.xls");
 
 		Date date = DateUtils.parseDate("03/10/2017 14:30", "dd/MM/yyyy HH:mm");
-
+		
 		Excel e = new Excel();
 		e.incluirColunaDataHora(date, newFile);
+		
+		e.gerarCsv(csvPath);
 
 	}
 
 	public Excel() {
+		sb = new StringBuilder();
+		generateHeaderCsv();
+	}
+
+	private void generateHeaderCsv() {
+		pw = null;
+		try {
+			pw = new PrintWriter(new File("D://test.csv"));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
 	}
 
 	public void incluirColunaDataHora(Date dtHrArquivo, File file) {
@@ -59,7 +85,30 @@ public class Excel {
 			int colCheckBloq = 4; // coluna E
 			int rowNum = ws.getLastRowNum() + 1;
 			int countRow = 1;
+			int countCol = 0;
 
+			
+			if (header == false) {
+				while (countCol < colNum) {
+				
+					HSSFRow hRow = ws.getRow(0);
+					HSSFCell cell = hRow.getCell(countCol);
+					String hContent = cell.getStringCellValue();
+					System.out.println(hContent);
+					sb.append(hContent);
+					sb.append(";");
+					if (countCol + 1 == colNum) {
+						sb.append("Data e hora da carga");
+						sb.append(";");
+						sb.append("Bloqueado");
+						sb.append(";");
+						sb.append("\n");
+					}
+					countCol = countCol + 1;
+				}
+				countCol = 0;
+				header = true;
+			}
 			while (countRow < rowNum) {
 
 				HSSFRow r = ws.getRow(countRow);
@@ -88,9 +137,26 @@ public class Excel {
 				cellBloq.setCellType(CellType.STRING);
 				cellBloq.setCellValue(temBloq ? "SIM" : "NÃO");
 
+				while (countCol < colNum + 2) {
+					
+					HSSFRow bRow = ws.getRow(countRow);
+					HSSFCell cell = bRow.getCell(countCol);
+					cell.setCellType(CellType.STRING);
+					String hContent = cell.getStringCellValue();
+					System.out.println(hContent);
+					sb.append(hContent);
+					sb.append(";");
+					if (countCol + 1 == colNum + 2) {
+						sb.append("\n");
+					}
+					countCol = countCol + 1;
+				}
+				countCol = 0;
+				
 				countRow = countRow + 1;
 
 			}
+		
 
 			out = new FileOutputStream(file);
 			wk.write(out);
@@ -109,6 +175,14 @@ public class Excel {
 
 		}
 
+	}
+
+	public void gerarCsv(String path) {
+		// Gerar arquivo CSV
+			pw.write(sb.toString());
+			System.out.println("done!");
+			pw.flush();
+			pw.close();
 	}
 
 	/**

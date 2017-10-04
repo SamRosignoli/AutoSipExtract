@@ -9,6 +9,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
+import javax.swing.JOptionPane;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -33,6 +35,8 @@ public class Main {
 	private static JavascriptExecutor js = null;
 
 	private static String downloadFilepath;
+	
+	private static String csvPath;
 
 	public static void main(String[] args) {
 
@@ -112,6 +116,9 @@ public class Main {
 						while (xls == null && count < 10) {
 
 							try {
+							  /*Object jsReturnTable = js.executeScript("return document.getElementById('formE:vlrDetalheTb:j_idt1188').getElementsByTagName('span')[0].innerText;");
+								String Table1 = (jsReturnTable != null && jsReturnTable instanceof String) ? StringUtils.trim((String) jsReturnTable) : "";
+								JOptionPane.showMessageDialog(null, Table1);*/
 								// clica para fazer o download
 								js.executeScript("document.getElementById('formE:j_idt945').parentElement.click();");
 							} catch (Exception e) {
@@ -147,6 +154,7 @@ public class Main {
 						System.out.println("download " + descDealer + (ok ? " ok!" : " erro de time out!"));
 						System.out.println("");
 
+						
 					}
 
 					if (dtHrArquivo == null) {
@@ -162,6 +170,7 @@ public class Main {
 			// File arquivoFinal = excel.gerarArquivoUnico();
 
 			// TODO - salvar o arquivo final no diretorio de onde o BI vai ler
+			excel.gerarCsv(csvPath);
 
 			System.out.println("Arquivo final do SIP gerado com sucesso!");
 
