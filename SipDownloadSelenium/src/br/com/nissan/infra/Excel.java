@@ -3,15 +3,13 @@ package br.com.nissan.infra;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import javax.swing.JOptionPane;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
@@ -24,68 +22,101 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class Excel {
-	
+
 	public static void main(String[] args) throws ParseException {
-		
-		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APPLAUSO - 105.xls");
-		
+
+		File newFile = new File("C:\\Users\\Sidney Rodrigues\\Sip Extract\\APPLAUSO - 105.xls");
+
 		Date date = DateUtils.parseDate("03/10/2017 14:30", "dd/MM/yyyy HH:mm");
-		
+
 		Excel e = new Excel();
 		e.incluirColunaDataHora(date, newFile);
-		
+
 	}
 
 	public Excel() {
 	}
 
-	public void incluirColunaDataHora(Date dtHrArquivo, File newFile) {
+	public void incluirColunaDataHora(Date dtHrArquivo, File file) {
+
+		HSSFWorkbook wk = null;
+		HSSFSheet ws = null;
+		HSSFRow row = null;
+		HSSFCell cellDtHr = null;
+		HSSFCell cellBloq = null;
+		HSSFCell cellBloqCheck = null;
+
+		FileOutputStream out = null;
 
 		try {
-			
-			HSSFWorkbook wk = new HSSFWorkbook(new FileInputStream(newFile));
-			HSSFSheet ws = wk.getSheetAt(0);
-			HSSFRow row = ws.getRow(0);
-			HSSFCell c = null;
+
+			wk = new HSSFWorkbook(new FileInputStream(file));
+			ws = wk.getSheetAt(0);
+			row = ws.getRow(0);
 
 			int colNum = row.getLastCellNum();
+			int colBloq = colNum + 1;
+			int colCheckBloq = 4; // coluna E
 			int rowNum = ws.getLastRowNum() + 1;
 			int countRow = 1;
-			System.out.println(colNum);
-			System.out.println(rowNum);
-			
-			
-			while (countRow <rowNum) {
+
+			while (countRow < rowNum) {
+
 				HSSFRow r = ws.getRow(countRow);
-				c = r.getCell(colNum);
-				if (c == null) {
-					c = r.createCell(colNum);
+
+				// Data/Hora
+				cellDtHr = r.getCell(colNum);
+				if (cellDtHr == null) {
+					cellDtHr = r.createCell(colNum);
 				}
-				c.setCellType(CellType.STRING);
+				cellDtHr.setCellType(CellType.STRING);
 
 				DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
-				c.setCellValue(df.format(dtHrArquivo));
-				
+				cellDtHr.setCellValue(df.format(dtHrArquivo));
+
+				// check se tem bloqueio
+				cellBloqCheck = r.getCell(colCheckBloq);
+				String color = cellBloqCheck != null ? cellBloqCheck.getCellStyle().getFillForegroundColorColor().getHexString() : "";
+				boolean temBloq = color != null ? !color.equalsIgnoreCase("0:0:0") : false;
+
+				// Bloqueios
+				cellBloq = r.getCell(colBloq);
+				if (cellBloq == null) {
+					cellBloq = r.createCell(colBloq);
+				}
+				cellBloq.setCellType(CellType.STRING);
+				cellBloq.setCellValue(temBloq ? "SIM" : "NÃO");
+
 				countRow = countRow + 1;
-					
+
 			}
-			
 
-
-			FileOutputStream out = new FileOutputStream(newFile);
+			out = new FileOutputStream(file);
 			wk.write(out);
-			wk.close();
-			out.flush();
-			out.close();
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
+
+		} finally {
+
+			try {
+				wk.close();
+				out.flush();
+				out.close();
+			} catch (Exception e) {
+			}
+
 		}
 
 	}
 
-	/*public File gerarExcel() {
+	/**
+	 * Gera um arquivo 'xlsx'. PPor isso tem de usar XSSF
+	 */
+	public File gerarArquivoUnico() {
+
+		// TODO - gerar arquivo único depois que extrair tudo
 
 		XSSFWorkbook wb = new XSSFWorkbook();
 
@@ -96,7 +127,7 @@ public class Excel {
 		XSSFRow row = null;
 		XSSFCell cell = null;
 
-		*//*************** header ****************//*
+		/*************** header ****************/
 		row = sheet.createRow(++rowCount);
 		columnCount = -1;
 
@@ -119,10 +150,9 @@ public class Excel {
 		cell = row.createCell(++columnCount);
 		cell.setCellType(CellType.STRING);
 		cell.setCellValue("Qtde Referencias");
-		*//*************** header ****************//*
+		/*************** header ****************/
 
-		*//*************** body ****************//*
-
+		/*************** body ****************/
 		row = sheet.createRow(++rowCount);
 		columnCount = -1;
 
@@ -144,33 +174,14 @@ public class Excel {
 
 		cell = row.createCell(++columnCount);
 		cell.setCellType(CellType.NUMERIC);
-
-		*//*************** body ****************//*
-
-		JFileChooser fc = new JFileChooser();
-		fc.setCurrentDirectory(new File(System.getProperty("user.home") + "/Desktop"));
-		fc.addChoosableFileFilter(new FileNameExtensionFilter("Arquivos Excel (*.xlsx)", "xlsx"));
-		fc.setAcceptAllFileFilterUsed(false);
-		fc.setMultiSelectionEnabled(false);
-		fc.setDialogTitle("Salvar arquivo final c/ Agrupamento de Itens de Reemplazo");
-		int i = fc.showSaveDialog(null);
-		while (i != JFileChooser.APPROVE_OPTION) {
-			i = fc.showSaveDialog(null);
-		}
-
-		// File file = fc.getSelectedFile();
-		String absolutePath = fc.getSelectedFile().getAbsolutePath();
-		String ext = StringUtils.right(absolutePath, 5);
-		if (!StringUtils.equalsIgnoreCase(ext, ".xlsx")) {
-			absolutePath = absolutePath + ".xlsx";
-		}
+		/*************** body ****************/
 
 		File file = null;
 		FileOutputStream os = null;
 
 		try {
 
-			file = new File(absolutePath);
+			file = new File("");
 			os = new FileOutputStream(file);
 
 			wb.write(os);
@@ -190,6 +201,6 @@ public class Excel {
 
 		return file;
 
-	}*/
+	}
 
 }
