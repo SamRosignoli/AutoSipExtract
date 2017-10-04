@@ -132,9 +132,12 @@ public class Main {
 								// Então inclui a coluna com a Data/Hora de extração do Arquivo
 								excel.incluirColunaDataHora(dtHrArquivo, xls);
 							} else {
-								// se for null é porque deu o erro '500' no SIP ao tentar fazer download do arquivo
+								// se for null pode ser o erro '500' no SIP ao tentar fazer download do arquivo
 								// Neste caso, faz o navegador voltar e tenta o download de novo.
-								driver.navigate().back();
+								boolean erro500 = isErro500();
+								if (erro500) {
+									driver.navigate().back();
+								}
 								Thread.sleep(3000);
 							}
 							count++;
@@ -194,6 +197,27 @@ public class Main {
 
 	}
 
+	private static boolean isErro500() {
+
+		boolean erro500 = false;
+
+		try {
+
+			Object obj500 = js.executeScript("return document.getElementsByTagName('h1')[0].innerText;");
+
+			String txt500 = (obj500 != null && obj500 instanceof String) ? StringUtils.left(StringUtils.trim((String) obj500), 15) : "";
+
+			erro500 = StringUtils.equalsIgnoreCase(txt500, "HTTP Status 500");
+
+		} catch (Exception e) {
+			// ignore
+			erro500 = false;
+		}
+
+		return erro500;
+
+	}
+
 	/**
 	 * Depois que clica em pesquisar, verifica através deste método se terminou a busca olhando se a TD 'Data da Pesquisa' foi preenchida.
 	 */
@@ -238,12 +262,12 @@ public class Main {
 					oldFile.delete();
 					return renameToOk ? newFile : null;
 				}
-				
+
 				boolean checkDuplicado = ").xls".equalsIgnoreCase(StringUtils.right(fName, 5));
-				if(checkDuplicado){
+				if (checkDuplicado) {
 					f.delete();
 				}
-				
+
 			}
 		}
 		return null;
