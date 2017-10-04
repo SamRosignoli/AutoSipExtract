@@ -112,7 +112,7 @@ public class Excel {
 	}
 
 	/**
-	 * Gera um arquivo 'xlsx'. PPor isso tem de usar XSSF
+	 * Gera um arquivo 'xlsx'. Por isso tem de usar XSSF
 	 */
 	public File gerarArquivoUnico() {
 

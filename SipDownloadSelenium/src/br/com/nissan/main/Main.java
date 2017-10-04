@@ -150,7 +150,7 @@ public class Main {
 					}
 
 					if (dtHrArquivo == null) {
-						System.out.println("Download " + descDealer + " não ocorrreu por falta de carga do arquivo");
+						System.out.println("Download " + descDealer + " não ocorreu por falta de carga do arquivo");
 						System.out.println("");
 					}
 
