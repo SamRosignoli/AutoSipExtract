@@ -9,8 +9,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-import javax.swing.JOptionPane;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -29,6 +27,12 @@ import br.com.nissan.domain.User;
 import br.com.nissan.infra.Excel;
 
 public class Main {
+	
+	//TODO Implementar data e hora no nome do arquivo final
+	//TODO Salvar o arquivo final tanto na pasta para o BI quanto numa pasta de backup na própria máquina
+	//TODO Criar/ler arquivo de configuração
+	//TODO Substituir , por .
+	//TODO Forçar encoding ISO 8859-1
 
 	private static WebDriver driver = null;
 
@@ -43,6 +47,8 @@ public class Main {
 		// String tituloMessage = "Selenium SIP Download";
 		String codDealer = "";
 		String descDealer = "";
+		// FIXME - Diretório de teste para salvar arquivo final. Procurar um diretório adequado para salvar na máquina local, e posteriormente numa pasta adequada para o BI
+		csvPath = "D://test.csv";
 
 		// Manipula os arquivos Excel com Apache POI
 		Excel excel = new Excel();
@@ -79,12 +85,11 @@ public class Main {
 				codDealer = conc.getCodigo();
 				descDealer = conc.getDescricao();
 
-				// ignora se for a opção '33 - Nissan' ou a opção '1 - SIP Nissan'
+				// ignora se for a opção '33 - Nissan Fábrica' ou a opção '1 - SIP Nissan'
 				if (!StringUtils.equalsIgnoreCase(codDealer, "33") && !StringUtils.equalsIgnoreCase(codDealer, "1")) {
 
 					if (ct++ > 0) {
 						// para trocar de concessionária tem de obrigatoriamente clicar na home do SIP antes
-						// js.executeScript("document.getElementById('j_idt29:j_idt30').click();");
 						driver.get("http://sipnissan.com.br/Sip/jsf_pages/home.jsf");
 						Thread.sleep(2000);
 					}
@@ -94,11 +99,11 @@ public class Main {
 					js.executeScript("document.getElementById('formEmp:empresa').onchange();");
 					Thread.sleep(2000);
 
-					// Seleciona o usuário e Pega a Data/Hora da Carga do Arquivo
-					// vai tentando até o último usuário, se não tiver retorna nulo/vazio
+					// Seleciona o usuário e extrai a Data/Hora da Carga do Arquivo
+					// tenta até o último usuário, se não houver, retorna nulo/vazio
 					Date dtHrArquivo = getDataHoraCargaArquivo();
 
-					// Se não teve carga de arquivo, ignora e parte para o próximo
+					// Se não houve carga de arquivo, ignora e parte para o próximo
 					if (dtHrArquivo != null) {
 
 						System.out.println("Extraindo o arquivo da concessionária " + descDealer);
@@ -116,13 +121,10 @@ public class Main {
 						while (xls == null && count < 10) {
 
 							try {
-							  /*Object jsReturnTable = js.executeScript("return document.getElementById('formE:vlrDetalheTb:j_idt1188').getElementsByTagName('span')[0].innerText;");
-								String Table1 = (jsReturnTable != null && jsReturnTable instanceof String) ? StringUtils.trim((String) jsReturnTable) : "";
-								JOptionPane.showMessageDialog(null, Table1);*/
 								// clica para fazer o download
 								js.executeScript("document.getElementById('formE:j_idt945').parentElement.click();");
 							} catch (Exception e) {
-								System.out.println("download ainda em andamento para a concessionária " + descDealer);
+								System.out.println("Download ainda em andamento para a concessionária " + descDealer);
 								// se teve erro, ignora e espera mais 5 segundos
 								// pode ocorrer de o download ainda estar em andamento
 								// neste caso vai gerar erro em uma nova tentativa e por isso captura aqui
@@ -151,12 +153,13 @@ public class Main {
 						}
 
 						boolean ok = (xls != null);
-						System.out.println("download " + descDealer + (ok ? " ok!" : " erro de time out!"));
+						System.out.println("Download " + descDealer + (ok ? " ok!" : " erro de time out!"));
 						System.out.println("");
 
 						
 					}
-
+					//verifica se houve carga do arquivo procurando pela data da carga. Quando a carga não feita
+					//o campo de data fica vazio
 					if (dtHrArquivo == null) {
 						System.out.println("Download " + descDealer + " não ocorreu por falta de carga do arquivo");
 						System.out.println("");
@@ -165,10 +168,7 @@ public class Main {
 				}
 
 			}
-
-			// Gera o arquivo único depois de extrair tudo
-			// File arquivoFinal = excel.gerarArquivoUnico();
-
+			//Por fim, cria o arquivo final, copia o conteúdo para ele, salva e fecha
 			// TODO - salvar o arquivo final no diretorio de onde o BI vai ler
 			excel.gerarCsv(csvPath);
 
@@ -193,7 +193,7 @@ public class Main {
 			e.printStackTrace();
 
 		} finally {
-
+			//fecha as conexões com o driver
 			if (driver != null) {
 				driver.close();
 				driver.quit();
@@ -205,7 +205,10 @@ public class Main {
 		}
 
 	}
-
+	/**
+	 * Verica se houve erro 500, e retorna true caso ocorra, a main solicitará que o driver volte uma página e tente novamente
+	 * @return
+	 */
 	private static boolean isErro500() {
 
 		boolean erro500 = false;
@@ -228,7 +231,8 @@ public class Main {
 	}
 
 	/**
-	 * Depois que clica em pesquisar, verifica através deste método se terminou a busca olhando se a TD 'Data da Pesquisa' foi preenchida.
+	 * Depois que clica em pesquisar, verifica através deste método se terminou a busca <br>
+	 *  olhando se a TD 'Data da Pesquisa' foi preenchida.
 	 */
 	private static void waitPesquisar() {
 		Object jsReturn = null;
@@ -245,11 +249,10 @@ public class Main {
 	}
 
 	/**
-	 * Renomeia o arquivo, deleta o antigo e adiciona uma coluna com data e hora
-	 * 
+	 *Renomeia o arquivo com o nome da concessionaria e apaga o antigo, começado por "DWAna". <br>
+	 *Também garante que o programa não deixará arquivos duplicados, terminados em ").xls"
 	 * @param descDealer
 	 * @param dtHrArquivo
-	 * @author xl02926
 	 * @return
 	 */
 	private static File renomeiaXls(String descDealer) {
@@ -283,7 +286,7 @@ public class Main {
 	}
 
 	/**
-	 * Salva todas as opções do combo de Dealers em um List para possibilitar a iteração em cada option depois.
+	 * Salva todas as opções do combo de Dealers em um List para possibilitar a iteração em cada option depois.<br>
 	 * 
 	 * Não permite repetidos / Usa List para garantir a ordem dos itens na lista.
 	 * 
@@ -317,8 +320,8 @@ public class Main {
 	/**
 	 * <b>Define as opções para abertura do browser.</b><br>
 	 * Ex.:<br>
-	 * - abrir já maximizado<br>
-	 * - diretório padrão para downloads
+	 * -Abrir já maximizado<br>
+	 * -Diretório padrão para downloads
 	 * 
 	 * @return org.openqa.selenium.chrome.ChromeOptions
 	 * @throws Exception
@@ -347,7 +350,7 @@ public class Main {
 	 * 
 	 * @return String com o path do diretório criado/já existente
 	 * @throws Exception
-	 *             lança uma Exception caso não consiga criar o diretório no SO.
+	 * lança uma Exception caso não consiga criar o diretório no SO.
 	 */
 	private static String checkDir() throws Exception {
 
@@ -373,7 +376,7 @@ public class Main {
 
 	/**
 	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão.<br>
-	 * Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga para nenhum dos usuários, estão retorna null.
+	 * Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga para nenhum dos usuários, então retorna null.
 	 * 
 	 * @param conc
 	 * 
@@ -423,7 +426,7 @@ public class Main {
 	}
 
 	/**
-	 * Salva todas as opções do combo de Users em um List para possibilitar a iteração em cada option depois.
+	 * Salva todas as opções do combo de Users em um List para possibilitar a iteração em cada option depois.<br>
 	 * 
 	 * Não permite repetidos / Usa List para garantir a ordem dos itens na lista.
 	 * 
@@ -456,7 +459,7 @@ public class Main {
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo considerando o usupário atualmente selecionado. Se não teve carga para o usuário selecionado retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo considerando o usuário atualmente selecionado. Se não teve carga para o usuário selecionado retorna null.
 	 * 
 	 * @param driver
 	 * @param optU
@@ -547,5 +550,51 @@ public class Main {
 		js.executeScript("document.getElementById('j_idt11:j_idt19').click();");
 
 	}
+	
+	
+	//CODIGO QUE ENCONTREI NA INTERNET QUE GERA UM ARQUIVO DE CONFIGURAÇÃO
+	//ESTA COMENTADO POIS NÃO TIVE TEMPO DE DAR UMA BRINCADA COM ELE
+	//Em Excel.java usei um setProperty na linha 45 que supostamente força ISO-8859-1, que talvez possa ser implementado aqui dentro.
+	
+	
+	/*import java.io.FileOutputStream;
+	import java.io.IOException;
+	import java.io.OutputStream;
+	import java.util.Properties;
+	
+	public class App {
+		  public static void main(String[] args) {
+
+			Properties prop = new Properties();
+			OutputStream output = null;
+
+			try {
+
+				output = new FileOutputStream("config.properties");
+
+				// set the properties value
+				prop.setProperty("database", "localhost");
+				prop.setProperty("dbuser", "mkyong");
+				prop.setProperty("dbpassword", "password");
+
+				// save properties to project root folder
+				prop.store(output, null);
+
+			} catch (IOException io) {
+				io.printStackTrace();
+			} finally {
+				if (output != null) {
+					try {
+						output.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+
+			}
+		  }
+		}*/
+	
+	
 
 }

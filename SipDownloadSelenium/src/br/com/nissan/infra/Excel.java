@@ -12,6 +12,8 @@ import java.util.Date;
 
 import javax.swing.JOptionPane;
 
+import org.apache.commons.lang3.CharUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
@@ -31,13 +33,20 @@ public class Excel {
 
 	private boolean header = false;
 
-	private static String csvPath;
+	private final String crLf = Character.toString((char) 13) + Character.toString((char) 10);
 
-	// ParseException
-	// FileNotFoundException
+	/**
+	 * método main para testes
+	 * @param args
+	 * @throws ParseException
+	 */
 	public static void main(String[] args) throws ParseException {
+		
+		System.setProperty("file.encoding", "ISO 8859-1");
+		
+		String csvPath = "D://test.csv";
 
-		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APPLAUSO - 105.xls");
+		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\VIVA - 73.xls");
 
 		Date date = DateUtils.parseDate("03/10/2017 14:30", "dd/MM/yyyy HH:mm");
 
@@ -46,12 +55,26 @@ public class Excel {
 
 		e.gerarCsv(csvPath);
 
+		String teste = null;
+		String retorno = e.trataString(teste);
+		System.out.println(retorno);
+
 	}
 
+	/**
+	 * aponta sb como uma nova StringBuilder
+	 */
 	public Excel() {
 		sb = new StringBuilder();
 	}
 
+	/**
+	 * Inclui uma coluna (AV) com data e hora da carga no SIP e uma coluna (AW) indicando bloqueio.<br>
+	 * Logo após copia o conteúdo do arquivo para uma string e ao final do download de todos os arquivos,<br>
+	 * copia o conteúdo todo para o arquivo CSV.
+	 * @param dtHrArquivo
+	 * @param file
+	 */
 	public void incluirColunaDataHora(Date dtHrArquivo, File file) {
 
 		HSSFWorkbook wk = null;
@@ -68,28 +91,32 @@ public class Excel {
 			wk = new HSSFWorkbook(new FileInputStream(file));
 			ws = wk.getSheetAt(0);
 			row = ws.getRow(0);
-
+			
+			//pega o numero da ultima coluna com valores na tabela. Obs: índice começa com 0
 			int colNum = row.getLastCellNum();
 			int colBloq = colNum + 1;
 			int colCheckBloq = 4; // coluna E
+			//pega o numero da ultima linha com valores na tabela e adiciona 1. Obs: Índice começa com 0
 			int rowNum = ws.getLastRowNum() + 1;
 			int countRow = 1;
 			int countCol = 0;
 
+			//Verifica se o cabeçalho ainda não foi feito. Caso positivo, copia a primeira linha do primeiro arquivo baixado,
+			//adiciona as colunas de data/hora e bloqueio e sinaliza o cabeçalho como feito
 			if (header == false) {
 				while (countCol < colNum) {
 
 					HSSFRow hRow = ws.getRow(0);
 					HSSFCell cell = hRow.getCell(countCol);
-					String hContent = cell.getStringCellValue(); // FIXME - tem que fazer tratamento em tudo o que ler do excel - Ex.: retirar espações e caracteres não imprimiveis
-					System.out.println(hContent);
-					sb.append(hContent);
+					String hContent = cell.getStringCellValue();
+					//System.out.println(hContent);
+					sb.append(trataString(hContent));
 					sb.append(";");
 					if (countCol + 1 == colNum) {
 						sb.append("Data e hora da carga");
 						sb.append(";");
 						sb.append("Bloqueado");
-						sb.append("\n"); // FIXME - ver melhor forma de gerar a quebra de linha
+						sb.append(crLf);
 					}
 					countCol = countCol + 1;
 				}
@@ -97,6 +124,12 @@ public class Excel {
 				header = true;
 			}
 
+			/*Contador vertical: enquanto o número da linha atual for menor que o número total de linhas, executa o contador horizontal.
+			Contador horizontal: a cada passagem do contador vertical, realiza um while que copia o conteúdo de cada célula até que
+			o número do contador seja igual ao número de colunas + 2 (data/hora e bloqueio).
+			No final, quebra a linha e começa a copiar a próxima, adicionando 1 no cont*/
+			
+			//CONTADOR VERTICAL
 			while (countRow < rowNum) {
 
 				HSSFRow r = ws.getRow(countRow);
@@ -110,7 +143,7 @@ public class Excel {
 
 				DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
-				cellDtHr.setCellValue(df.format(dtHrArquivo)); 
+				cellDtHr.setCellValue(df.format(dtHrArquivo));
 
 				// check se tem bloqueio
 				cellBloqCheck = r.getCell(colCheckBloq);
@@ -125,18 +158,19 @@ public class Excel {
 				cellBloq.setCellType(CellType.STRING);
 				cellBloq.setCellValue(temBloq ? "SIM" : "NÃO");
 
+				//CONTADOR HORIZONTAL
 				while (countCol < colNum + 2) {
 
 					HSSFRow bRow = ws.getRow(countRow);
 					HSSFCell cell = bRow.getCell(countCol);
 					cell.setCellType(CellType.STRING);
 					String hContent = cell.getStringCellValue();
-					System.out.println(hContent);
-					sb.append(hContent); // FIXME - tem que fazer tratamento em tudo o que ler do excel - Ex.: retirar espações e caracteres não imprimiveis
+					//System.out.println(hContent);
+					sb.append(trataString(hContent));
 					if (countCol + 1 == colNum + 2) {
-						sb.append("\n"); // FIXME - tem de achar uma maneira melhor de fazer a quebra de linha
+						sb.append(crLf);
 					} else {
-						sb.append(";"); // Não pode ter ';' no final da linha
+						sb.append(";");
 					}
 					countCol = countCol + 1;
 				}
@@ -165,17 +199,43 @@ public class Excel {
 
 	}
 
+	/**
+	 * Trata a String, retira caracteres de controle da tabela ASCII (0 A 31 E 127) EX: Alt+3 (End of Text)
+	 * 
+	 * @param str
+	 * @return
+	 */
+	private String trataString(String str) {
+		String retorno = str;
+		int length = str != null ? str.length() : 0;
+		for (int i = 0; i < length; i++) {
+
+			char charAt = str.charAt(i);
+			char indexString = str != null ? charAt : 'a';
+			//Verifica se o caractere selecionado é um caracter de controle ASCII
+			boolean c = CharUtils.isAsciiControl(indexString);
+			if (c) {
+				retorno = StringUtils.replace(retorno, ("" + charAt), "");
+			}
+
+		}
+		//trim para impedir espaços indesejados nas células
+		retorno = StringUtils.trim(retorno);
+		return retorno;
+	}
+
+	/**
+	 * Gera o arquivo CSV, copia todos os dados armazenados na StringBuilder sb, salva o arquivo e fecha no local indicado (path)
+	 * @param path
+	 */
 	public void gerarCsv(String path) {
 
 		try {
-
-			pw = new PrintWriter(new File("D://test.csv"));
-
-			// pw = new PrintWriter(new File(path));
+			pw = new PrintWriter(new File(path));
 
 			pw.write(sb.toString());
 
-			System.out.println("done!");
+			System.out.println("Terminado!");
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -190,13 +250,14 @@ public class Excel {
 		}
 
 	}
+	
+	
+	//CÓDIGO ABAIXO NÃO UTILIZADO, SOMENTE EXEMPLO
 
 	/**
-	 * Gera um arquivo 'xlsx'. Por isso tem de usar XSSF
+	 * Gera um arquivo 'xlsx'. Por isso deve-se usar XSSF
 	 */
 	public File gerarArquivoUnico() {
-
-		// TODO - gerar arquivo único depois que extrair tudo
 
 		XSSFWorkbook wb = new XSSFWorkbook();
 
