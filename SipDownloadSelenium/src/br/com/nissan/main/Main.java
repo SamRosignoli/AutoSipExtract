@@ -31,10 +31,7 @@ import br.com.nissan.infra.Excel;
 
 public class Main {
 
-	// TODO Salvar o arquivo final tanto na pasta para o BI quanto numa pasta de backup na própria máquina
-	// TODO Substituir , por .
-
-	// contantes
+	// constantes
 	private static final String propertiesDefaultName = "sip_download_config.properties";
 	private static final String propertieCsvPath = "csv-path-download";
 	private static final String propertieUser = "user";

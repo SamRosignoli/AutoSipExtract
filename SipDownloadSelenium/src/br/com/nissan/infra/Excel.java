@@ -24,6 +24,7 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+
 public class Excel {
 
 	private StringBuilder sb;
@@ -31,6 +32,10 @@ public class Excel {
 	private boolean header = false;
 
 	private final String crLf = Character.toString((char) 13) + Character.toString((char) 10);
+	
+	private String biFile = "D:\\LocalData\\xl02926\\ff_estoque_material_varejo.csv";
+	
+	File biFil = new File(biFile);
 
 	/**
 	 * método main para testes
@@ -40,9 +45,11 @@ public class Excel {
 	 */
 	public static void main(String[] args) throws Exception {
 
-		String csvPath = "D:\\LocalData\\x888541\\Documents";
+		String csvPath = "D:\\LocalData\\xl02926\\Documents";
+		
+		
 
-		File newFile = new File("C:\\Users\\x888541\\Sip Extract\\APJ JAPAN - 26.xls");
+		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APJ JAPAN - 26.xls");
 
 		Date date = DateUtils.parseDate("03/10/2017 14:30", "dd/MM/yyyy HH:mm");
 
@@ -52,8 +59,8 @@ public class Excel {
 		e.gerarCsv(csvPath);
 
 		String teste = null;
+		@SuppressWarnings("unused")
 		String retorno = e.trataString(teste);
-		System.out.println(retorno);
 
 	}
 
@@ -89,7 +96,7 @@ public class Excel {
 			ws = wk.getSheetAt(0);
 			row = ws.getRow(0);
 
-			// pega o numero da ultima coluna com valores na tabela. Obs: índice começa com 0
+			// pega o numero da ultima coluna com valores na tabela. Obs: Índice começa com 0
 			int colNum = row.getLastCellNum();
 			int colBloq = colNum + 1;
 			int colCheckBloq = 4; // coluna E
@@ -106,7 +113,6 @@ public class Excel {
 					HSSFRow hRow = ws.getRow(0);
 					HSSFCell cell = hRow.getCell(countCol);
 					String hContent = cell.getStringCellValue();
-					// System.out.println(hContent);
 					sb.append(trataString(hContent));
 					sb.append(";");
 					if (countCol + 1 == colNum) {
@@ -163,7 +169,6 @@ public class Excel {
 					HSSFCell cell = bRow.getCell(countCol);
 					cell.setCellType(CellType.STRING);
 					String hContent = cell.getStringCellValue();
-					// System.out.println(hContent);
 					sb.append(trataString(hContent));
 					if (countCol + 1 == colNum + 2) {
 						sb.append(crLf);
@@ -180,6 +185,8 @@ public class Excel {
 
 			out = new FileOutputStream(file);
 			wk.write(out);
+			
+			
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -210,9 +217,12 @@ public class Excel {
 
 			char charAt = str.charAt(i);
 			char indexString = str != null ? charAt : 'a';
-			// Verifica se o caractere selecionado é um caracter de controle ASCII
+			// Boolean para verificar se o caractere selecionado é um caracter de controle ASCII
 			boolean c = CharUtils.isAsciiControl(indexString);
-			if (c) {
+			// Boolean para verificar se o caracter selecionado é um ;
+			boolean c2 = indexString == ';' ? true : false;
+			//Verificação c=true ou c2=true
+			if (c || c2) {
 				retorno = StringUtils.replace(retorno, ("" + charAt), "");
 			}
 
@@ -234,6 +244,7 @@ public class Excel {
 		path = path + "\\SIP_" + df.format(Calendar.getInstance().getTime()) + ".csv";
 
 		PrintWriter pw = null;
+		PrintWriter pwBI = null;
 
 		try {
 
@@ -243,10 +254,14 @@ public class Excel {
 			}
 			
 			// Força para salvar em ISO-8859-1
+			//Arquivo local
 			pw = new PrintWriter(file, "ISO-8859-1");
-
+			//Arquivo para o BI (caminho da pasta ainda sujeito a alteração)
+			pwBI = new PrintWriter(biFile,"ISO-8859-1");
+			
 			pw.write(sb.toString());
-
+			pwBI.write(sb.toString());
+			
 			System.out.println("Terminado!");
 
 		} catch (Exception e) {
@@ -254,9 +269,12 @@ public class Excel {
 
 		} finally {
 			try {
-				if (pw != null) {
+				if (pw != null && pwBI !=null) {
 					pw.flush();
 					pw.close();
+					
+					pwBI.flush();
+					pwBI.close();
 				}
 			} catch (Exception e) {
 				// ignore
