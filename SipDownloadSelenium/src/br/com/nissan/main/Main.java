@@ -1,23 +1,23 @@
 package br.com.nissan.main;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URL;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
-import javax.swing.JFileChooser;
-import javax.swing.JOptionPane;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.filechooser.FileSystemView;
-
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
-import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -27,26 +27,51 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 
 import br.com.nissan.domain.Concessionaria;
 import br.com.nissan.domain.User;
+import br.com.nissan.infra.Excel;
 
 public class Main {
 
+	// TODO Implementar data e hora no nome do arquivo final
+	// TODO Salvar o arquivo final tanto na pasta para o BI quanto numa pasta de backup na própria máquina
+	// TODO Criar/ler arquivo de configuração
+	// TODO Substituir , por .
+	// TODO Forçar encoding ISO 8859-1
+
+	// contantes
+	private static final String propertiesDefaultName = "sip_download_config.properties";
+	private static final String propertieCsvPath = "csv-path-download";
+	private static final String propertieUser = "user";
+	private static final String propertiePass = "pass";
+
+	// variáveis
 	private static WebDriver driver = null;
+
+	private static JavascriptExecutor js = null;
 
 	private static String downloadFilepath;
 
-	public static void main(String[] args) {
+	private static String csvPath;
 
-		String tituloMessage = "Selenium SIP Download";
-		String codDealer = "";
-		String descDealer = "";
+	private static Properties properties;
+
+	public static void main(String[] args) {
 
 		try {
 
+			// Antes de qualquer outra coisa define o arquivo properties
+			properties = getPropertiesConfig();
+
 			// Verifica se o diretório já existe, caso contrário cria um novo
-			downloadFilepath = checkDir();
+			downloadFilepath = getDownloadFilepath();
+
+			// Define o diretório para salvar o CSV
+			csvPath = getCsvPath();
+
+			// Manipula os arquivos Excel com Apache POI
+			Excel excel = new Excel();
 
 			// deleta todos os arquivos existentes na pasta sempre que executar uma nova rodada
-			deleteActualfiles();
+			FileUtils.cleanDirectory(new File(downloadFilepath));
 
 			String driverPath = getDriverPath();
 			System.setProperty("webdriver.chrome.driver", driverPath);
@@ -54,9 +79,14 @@ public class Main {
 			// abre o Chrome já com as opções configuradas (Ex.: maximizado)
 			driver = new ChromeDriver(getChromeOptions());
 
+			// possibilita a execução de javascript
+			// faz todas as operações através de javascript por ser mais robusto que o método driver.click()
+			// o método driver.click() só funciona se estiver com a janela do browser ativa e com o elemento visível
+			js = (JavascriptExecutor) driver;
+
 			// faz o login
 			login();
-			Thread.sleep(5000);
+			Thread.sleep(2000);
 
 			// Iteração em todas as concessionárias existentes no Select da página para baixar o arquivo analítico
 			// Já que no Selenium não é possível acessar um WebElement depois de um refresh na página em uma iteração, guarda o Set de concessionárias antes para conseguir iterar depois.
@@ -64,120 +94,104 @@ public class Main {
 			int ct = 0;
 			for (Concessionaria conc : set) {
 
-				codDealer = conc.getCodigo();
-				descDealer = conc.getDescricao();
-				int idxDealer = conc.getIndex();
+				String codDealer = conc.getCodigo();
+				String descDealer = conc.getDescricao();
 
-				// debug do samuca -----------
-				/*if (!"105".equalsIgnoreCase(codDealer)) {
-					continue;
-				}*/
-
-				// ignora se for a opção '33 - Nissan' ou a opção '1 - SIP Nissan'
+				// ignora se for a opção '33 - Nissan Fábrica' ou a opção '1 - SIP Nissan'
 				if (!StringUtils.equalsIgnoreCase(codDealer, "33") && !StringUtils.equalsIgnoreCase(codDealer, "1")) {
-					
-					if(ct>0) {
+
+					if (ct++ > 0) {
 						// para trocar de concessionária tem de obrigatoriamente clicar na home do SIP antes
-						driver.findElement(By.id("j_idt29:j_idt30")).click();
-						Thread.sleep(3000);
+						driver.get("http://sipnissan.com.br/Sip/jsf_pages/home.jsf");
+						Thread.sleep(2000);
 					}
-					
-					ct++;
-
-					WebElement comboDealers = driver.findElement(By.id("formEmp:empresa"));
-					WebElement optC = comboDealers.findElements(By.tagName("option")).get(idxDealer);
-
-					String codigo = StringUtils.trim(optC.getAttribute("value"));
-					System.out.println("debug checking codigo >>> " + codigo.equalsIgnoreCase(codDealer));
-
-					String descricao = StringUtils.trim(optC.getText());
-					System.out.println("check checking descricao >>> " + descricao.equalsIgnoreCase(descDealer));
 
 					// Seleciona a concessionária e aguarda carregar
-					optC.click();
-					Thread.sleep(3000);
+					js.executeScript("document.getElementById('formEmp:empresa').value = '" + codDealer + "';");
+					js.executeScript("document.getElementById('formEmp:empresa').onchange();");
+					Thread.sleep(2000);
 
-					// Seleciona o usuário e Pega a Data/Hora da Carga do Arquivo
-					// vai tentando até o último usuário, se não tiver retorna nulo/vazio
+					// Seleciona o usuário e extrai a Data/Hora da Carga do Arquivo
+					// tenta até o último usuário, se não houver, retorna nulo/vazio
 					Date dtHrArquivo = getDataHoraCargaArquivo();
-					Thread.sleep(3000);
 
-					// Se não teve carga de arquivo, ignora e parte para o próximo
+					// Se não houve carga de arquivo, ignora e parte para o próximo
 					if (dtHrArquivo != null) {
 
-						String fileStr = descDealer + ".xls";
-						System.out.println(fileStr);
+						System.out.println("Extraindo o arquivo da concessionária " + descDealer);
+						System.out.println("Data/Hora da Carga do Arquivo: " + new SimpleDateFormat("dd/MM/yyyy HH:mm").format(dtHrArquivo));
 
 						// clica em pesquisar
-						WebElement pesquisar = driver.findElement(By.id("formE:modelButton")).findElements(By.tagName("a")).get(3);
-						pesquisar.click();
-						Thread.sleep(10000);
+						js.executeScript("document.getElementById('formE:modelButton').getElementsByTagName('a')[3].click();");
 
-						//
-						WebElement ScrollDetalhe = driver.findElement(By.id("formE:vlrDetalhe_toggler"));
-						((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", ScrollDetalhe);
-						Thread.sleep(500);
+						// verifica se terminou a busca
+						waitPesquisar();
 
-						WebElement aDetalhe = driver.findElement(By.id("formE:vlrDetalhe_toggler"));
-						aDetalhe.findElement(By.tagName("span")).click();
-						Thread.sleep(500);
+						File xls = null;
+						int count = 0;
+						// vai tentar até 10 vezes fazer o download, caso contrario sai do loop para não ficar eternamente
+						while (xls == null && count < 10) {
 
-						WebElement ScrollFilial = driver.findElement(By.id("formE:filial_toggler"));
-						((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", ScrollFilial);
-						Thread.sleep(1000);
-
-						WebElement imgSave = driver.findElement(By.id("formE:j_idt945"));
-						imgSave.click();
-						Thread.sleep(3000);
-
-						File folder = new File(downloadFilepath);
-						File[] listOfFiles = folder.listFiles();
-						for (File f : listOfFiles) {
-							if (f.isFile()) {
-
-								String fName = f.getName();
-								System.out.println("File " + fName);
-
-								if ("DWA".equalsIgnoreCase(StringUtils.left(fName, 3))) {
-									File oldFile = new File(downloadFilepath + "\\" + fName);
-									File newFile = new File(downloadFilepath + "\\" + descDealer + ".xls");
-									oldFile.renameTo(newFile);
-									// usar newFile com poi
-									oldFile.delete();
-									// alterar o nome
-									// incluir coluna na direita
-									// salvar
-								}
-
+							try {
+								// clica para fazer o download
+								js.executeScript("document.getElementById('formE:j_idt945').parentElement.click();");
+							} catch (Exception e) {
+								System.out.println("Download ainda em andamento para a concessionária " + descDealer);
+								// se teve erro, ignora e espera mais 5 segundos
+								// pode ocorrer de o download ainda estar em andamento
+								// neste caso vai gerar erro em uma nova tentativa e por isso captura aqui
+							} finally {
+								Thread.sleep(5000);
 							}
+
+							// tenta renomear o excel depois do download se achá-lo
+							// retorna null se não encontrá-lo
+							xls = renomeiaXls(descDealer);
+
+							if (xls != null) {
+								// Se achou é porque o download terminou com sucesso
+								// Então inclui a coluna com a Data/Hora de extração do Arquivo
+								excel.incluirColunaDataHora(dtHrArquivo, xls);
+							} else {
+								// se for null pode ser o erro '500' no SIP ao tentar fazer download do arquivo
+								// Neste caso, faz o navegador voltar e tenta o download de novo.
+								boolean erro500 = isErro500();
+								if (erro500) {
+									driver.navigate().back();
+								}
+								Thread.sleep(3000);
+							}
+							count++;
 						}
 
+						boolean ok = (xls != null);
+						System.out.println("Download " + descDealer + (ok ? " ok!" : " erro de time out!"));
+						System.out.println("");
+
+					}
+					// verifica se houve carga do arquivo procurando pela data da carga. Quando a carga não feita
+					// o campo de data fica vazio
+					if (dtHrArquivo == null) {
+						System.out.println("Download " + descDealer + " não ocorreu por falta de carga do arquivo");
+						System.out.println("");
 					}
 
 				}
 
 			}
 
-			JOptionPane.showMessageDialog(null, "Arquivo final do SIP gerado com sucesso!", tituloMessage, JOptionPane.INFORMATION_MESSAGE);
+			// Por fim, cria o arquivo final, copia o conteúdo para ele, salva e fecha
+			// TODO - salvar o arquivo final no diretorio de onde o BI vai ler
+			excel.gerarCsv(csvPath);
 
-		} catch (TimeoutException e) {
-			JOptionPane.showMessageDialog(null, "Erro de tempo de espera excedido: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
-			e.printStackTrace();
-
-		} catch (NoSuchElementException e) {
-			JOptionPane.showMessageDialog(null, "Erro ao tentar encontrar um elemento na página do SIP", tituloMessage, JOptionPane.ERROR_MESSAGE);
-			e.printStackTrace();
-
-		} catch (ParseException e) {
-			JOptionPane.showMessageDialog(null, "Erro ao tentar ler a Data/Hora de carga do arquivo no dealer " + codDealer + " - " + descDealer, tituloMessage, JOptionPane.ERROR_MESSAGE);
-			e.printStackTrace();
+			System.out.println("Arquivo final do SIP gerado com sucesso!");
 
 		} catch (Exception e) {
-			JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
+			// JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 
 		} finally {
-
+			// fecha as conexões com o driver
 			if (driver != null) {
 				driver.close();
 				driver.quit();
@@ -191,22 +205,243 @@ public class Main {
 	}
 
 	/**
-	 * Salva todas as opções do combo de Dealers em um List para possibilitar a iteração em cada option depois.
+	 * Gera, se ainda não existir, o arquivo 'sip_download_config.properties' no mesmo diretório do projeto final (jar executável) já com os properties padrões configurados.
+	 * 
+	 * @return
+	 * @throws Exception
+	 */
+	private static Properties getPropertiesConfig() throws Exception {
+
+		String projectDir = System.getProperty("user.dir");
+
+		int lastIndexOf = projectDir.lastIndexOf("\\");
+		String diretorio = StringUtils.substring(projectDir, 0, lastIndexOf);
+
+		// cria o diretorio se ainda não existir
+		File f = new File(diretorio);
+		if (!f.exists()) {
+			throw new Exception("Não foi possível encontrar o diretório '" + diretorio + "' para gerar o arquivo '" + propertiesDefaultName + "'.");
+		}
+
+		String propsPath = diretorio + File.separator + propertiesDefaultName;
+		File propsFile = new File(propsPath);
+		if (!propsFile.exists()) {
+			try {
+				propsFile.createNewFile();
+				writeDefaultProperties(propsPath);
+			} catch (Exception e) {
+				throw new Exception("Não foi possível criar o arquivo 'sip_download_config.properties' >>> " + e.getMessage());
+			}
+		}
+
+		Properties prop = loadProperties(propsFile);
+		return prop;
+
+	}
+
+	/**
+	 * Carrega o arquivo Properties.
+	 * 
+	 * @param propsFile
+	 * @return
+	 * @throws Exception
+	 */
+	private static Properties loadProperties(File propsFile) throws Exception {
+
+		Properties prop = new Properties();
+
+		FileInputStream in = null;
+
+		try {
+
+			// carrega o properties
+			in = new FileInputStream(propsFile);
+			prop.load(in);
+
+			Set<Object> keySet = prop.keySet();
+			System.out.println("Arquivo '" + propertiesDefaultName + "' carregado com sucesso:");
+			for (Object obj : keySet) {
+				System.out.println(obj + " = " + prop.getProperty((String) obj));
+			}
+
+		} catch (Exception e) {
+			throw new Exception("Erro ao carregar o arquivo de configuração '" + propertiesDefaultName + "' >>> " + e.getMessage());
+
+		} finally {
+			try {
+				in.close();
+			} catch (Exception e) {
+				// ignore
+			}
+		}
+
+		return prop;
+	}
+
+	/**
+	 * Escreve um Properties padrão.
+	 * 
+	 * @param path
+	 * @throws Exception
+	 */
+	private static void writeDefaultProperties(String path) throws Exception {
+
+		Properties p = new Properties();
+
+		OutputStream out = new FileOutputStream(path);
+
+		String defaultCsvPath = getDefaultCsvPath();
+		defaultCsvPath = StringUtils.replace(defaultCsvPath, "\\", "/");
+
+		p.setProperty(propertieUser, "srodrigues");
+		p.setProperty(propertiePass, "a1");
+		p.setProperty(propertieCsvPath, defaultCsvPath);
+
+		StringBuilder comentarios = new StringBuilder();
+		comentarios.append("O diretório padrão para salavar o CSV (" + propertieCsvPath + ") deve ser informado sempre com a \"barra para frente\" >> '/'.");
+		comentarios.append(StringUtils.CR + StringUtils.LF);
+		comentarios.append("Ex.: 'D:/LocalData/x888541/Documents'.");
+
+		p.store(out, comentarios.toString());
+
+		if (out != null) {
+			out.close();
+		}
+
+	}
+
+	/**
+	 * Define qual vai ser o diretório para salvar o arquivo CSV final.<br>
+	 * Primeiro tenta pegar do arquivo de configuração '.properties'.<br>
+	 * Caso contrário salva na área de trabalho diretório padrão do usuário.
+	 * 
+	 * @return
+	 * @throws Exception
+	 */
+	private static String getCsvPath() throws Exception {
+
+		String propertyCsv = properties.getProperty(propertieCsvPath);
+
+		String csvDir = StringUtils.isNoneEmpty(propertyCsv) ? propertyCsv : getDefaultCsvPath();
+
+		// cria o diretório se não existir
+		File dir = new File(csvDir);
+		if (!dir.exists()) {
+			try {
+				dir.mkdirs();
+			} catch (Exception ex) {
+				throw new Exception("Não foi possível criar o diretório para gerar o CSV dos arquivos SIP >>> " + ex.getMessage());
+			}
+		}
+
+		String csvPath = dir.getAbsolutePath();
+
+		return csvPath;
+	}
+
+	private static String getDefaultCsvPath() {
+		return System.getProperty("user.home") + "\\Sip Csv Final";
+	}
+
+	/**
+	 * Verica se houve erro 500, e retorna true caso ocorra, a main solicitará que o driver volte uma página e tente novamente
+	 * 
+	 * @return
+	 */
+	private static boolean isErro500() {
+
+		boolean erro500 = false;
+
+		try {
+
+			Object obj500 = js.executeScript("return document.getElementsByTagName('h1')[0].innerText;");
+
+			String txt500 = (obj500 != null && obj500 instanceof String) ? StringUtils.left(StringUtils.trim((String) obj500), 15) : "";
+
+			erro500 = StringUtils.equalsIgnoreCase(txt500, "HTTP Status 500");
+
+		} catch (Exception e) {
+			// ignore
+			erro500 = false;
+		}
+
+		return erro500;
+
+	}
+
+	/**
+	 * Depois que clica em pesquisar, verifica através deste método se terminou a busca <br>
+	 * olhando se a TD 'Data da Pesquisa' foi preenchida.
+	 */
+	private static void waitPesquisar() {
+		Object jsReturn = null;
+		String dtPesquisa = null;
+		while (StringUtils.isEmpty(dtPesquisa)) {
+			try {
+				jsReturn = js.executeScript("return document.getElementById('formE:planejamento_content').getElementsByTagName('td')[3].innerText;");
+				dtPesquisa = (jsReturn != null && jsReturn instanceof String) ? StringUtils.trim((String) jsReturn) : "";
+				Thread.sleep(1000);
+			} catch (Exception e) {
+				// ignore
+			}
+		}
+	}
+
+	/**
+	 * Renomeia o arquivo com o nome da concessionaria e apaga o antigo, começado por "DWAna". <br>
+	 * Também garante que o programa não deixará arquivos duplicados, terminados em ").xls"
+	 * 
+	 * @param descDealer
+	 * @param dtHrArquivo
+	 * @return
+	 */
+	private static File renomeiaXls(String descDealer) {
+		File folder = new File(downloadFilepath);
+		File[] listOfFiles = folder.listFiles();
+		for (File f : listOfFiles) {
+			if (f.isFile()) {
+				String fName = f.getName();
+
+				// garante que não vai pegar arquivos que porventura tenham sido salvos 2x
+				// quando isso ocorre, o final deles fica diferente: '_Gerar (1).xls'
+				boolean checkIni = "DWAna".equalsIgnoreCase(StringUtils.left(fName, 5));
+				boolean checkExtension = "_Gerar.xls".equalsIgnoreCase(StringUtils.right(fName, 10));
+
+				if (checkIni && checkExtension) {
+					File oldFile = new File(downloadFilepath + "\\" + fName);
+					File newFile = new File(downloadFilepath + "\\" + descDealer + ".xls");
+					boolean renameToOk = oldFile.renameTo(newFile);
+					oldFile.delete();
+					return renameToOk ? newFile : null;
+				}
+
+				boolean checkDuplicado = ").xls".equalsIgnoreCase(StringUtils.right(fName, 5));
+				if (checkDuplicado) {
+					f.delete();
+				}
+
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Salva todas as opções do combo de Dealers em um List para possibilitar a iteração em cada option depois.<br>
 	 * 
 	 * Não permite repetidos / Usa List para garantir a ordem dos itens na lista.
 	 * 
 	 * @return HashSet com os objetos Concessionaria
 	 */
+	@SuppressWarnings("unchecked")
 	private static ArrayList<Concessionaria> optionsToDealerList() {
 
 		ArrayList<Concessionaria> list = new ArrayList<Concessionaria>();
 
-		WebElement comboDealers = driver.findElement(By.id("formEmp:empresa"));
-
-		List<WebElement> listOptions = comboDealers.findElements(By.tagName("option"));
+		Object jsReturn = js.executeScript("return document.getElementById('formEmp:empresa').getElementsByTagName('option');");
 
 		int ct = 0;
-		for (WebElement option : listOptions) {
+		List<WebElement> jsReturnList = (List<WebElement>) jsReturn;
+		for (WebElement option : jsReturnList) {
 
 			String codigo = StringUtils.trim(option.getAttribute("value"));
 			String descricao = StringUtils.trim(option.getText());
@@ -222,14 +457,13 @@ public class Main {
 		return list;
 	}
 
-	private static void deleteActualfiles() {
-		// TODO - deletar todos os arquivos existentes na pasta para não dar pau na lógica em produção
-	}
-
 	/**
-	 * Opções para abertura do browser. Ex.: abrir já maximizado
+	 * <b>Define as opções para abertura do browser.</b><br>
+	 * Ex.:<br>
+	 * -Abrir já maximizado<br>
+	 * -Diretório padrão para downloads
 	 * 
-	 * @return
+	 * @return org.openqa.selenium.chrome.ChromeOptions
 	 * @throws Exception
 	 */
 	private static ChromeOptions getChromeOptions() throws Exception {
@@ -258,11 +492,11 @@ public class Main {
 	 * @throws Exception
 	 *             lança uma Exception caso não consiga criar o diretório no SO.
 	 */
-	private static String checkDir() throws Exception {
+	private static String getDownloadFilepath() throws Exception {
 
-		String downloadFilepath = System.getProperty("user.home");
+		String userHome = System.getProperty("user.home");
 
-		File theDir = new File(downloadFilepath + "\\Sip Extract");
+		File theDir = new File(userHome + "\\Sip Extract");
 
 		// if the directory does not exist, create it
 		if (!theDir.exists()) {
@@ -281,8 +515,8 @@ public class Main {
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão. Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga
-	 * para nenhum dos usuários, estão retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão.<br>
+	 * Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga para nenhum dos usuários, então retorna null.
 	 * 
 	 * @param conc
 	 * 
@@ -299,36 +533,28 @@ public class Main {
 		for (User u : users) {
 
 			String codigo = u.getCodigo();
-			String nome = u.getNome();
-			int index = u.getIndex();
 
 			// ignora a opção '0'
 			if (!StringUtils.equalsIgnoreCase(codigo, "0")) {
-				
-				if(ct>0) {
+
+				if (ct > 0) {
 					// para trocar de usuário tem de obrigatoriamente clicar na home do SIP antes
-					driver.findElement(By.id("j_idt29:j_idt30")).click();
-					Thread.sleep(3000);
+					// driver.findElement(By.id("j_idt29:j_idt30")).click();
+					js.executeScript("document.getElementById('j_idt29:j_idt30').click();");
+					Thread.sleep(2000);
 				}
 
-				System.out.println("Tentativa de pegar e Data/Hora da Carga com o seguinte usuário: " + codigo + " - " + nome);
-
-				WebElement comboUsuarios = driver.findElement(By.id("formEmp:usuario"));
-				WebElement optU = comboUsuarios.findElements(By.tagName("option")).get(index);
-
-				String vU = optU.getAttribute("value");
-				System.out.println("debug checking codigo user >>> " + vU.equalsIgnoreCase(codigo));
-
 				// seleciona o usuário
-				optU.click();
-				Thread.sleep(3000);
+				js.executeScript("document.getElementById('formEmp:usuario').value = '" + codigo + "';");
+				js.executeScript("document.getElementById('formEmp:usuario').onchange();");
+				Thread.sleep(2000);
 
 				// Tenta achar a data e se achar já retorna, não vai para o próximo
 				Date dataHoraArquivo = tryToGetDataHoraByUser();
 				if (dataHoraArquivo != null) {
 					return dataHoraArquivo;
 				}
-				
+
 				ct++;
 
 			}
@@ -336,26 +562,26 @@ public class Main {
 		}
 
 		return null;
-		
+
 	}
 
 	/**
-	 * Salva todas as opções do combo de Users em um List para possibilitar a iteração em cada option depois.
+	 * Salva todas as opções do combo de Users em um List para possibilitar a iteração em cada option depois.<br>
 	 * 
 	 * Não permite repetidos / Usa List para garantir a ordem dos itens na lista.
 	 * 
 	 * @return
 	 */
+	@SuppressWarnings("unchecked")
 	private static List<User> optionsToUserList() {
 
 		ArrayList<User> list = new ArrayList<User>();
 
-		WebElement comboUsuarios = driver.findElement(By.id("formEmp:usuario"));
+		Object jsReturn = js.executeScript("return document.getElementById('formEmp:usuario').getElementsByTagName('option');");
 
-		List<WebElement> userOptions = comboUsuarios.findElements(By.tagName("option"));
-		
 		int ct = 0;
-		for (WebElement opt : userOptions) {
+		List<WebElement> jsReturnList = (List<WebElement>) jsReturn;
+		for (WebElement opt : jsReturnList) {
 
 			String codigo = StringUtils.trim(opt.getAttribute("value"));
 			String nome = StringUtils.trim(opt.getText());
@@ -373,7 +599,7 @@ public class Main {
 	}
 
 	/**
-	 * Pega a Data/Hora da Carga do Arquivo considerando o usupário atualmente selecionado. Se não teve carga para o usuário selecionado retorna null.
+	 * Pega a Data/Hora da Carga do Arquivo considerando o usuário atualmente selecionado. Se não teve carga para o usuário selecionado retorna null.
 	 * 
 	 * @param driver
 	 * @param optU
@@ -385,19 +611,13 @@ public class Main {
 
 		// Acessa o Analítico e aguarda carregar
 		driver.get("http://sipnissan.com.br/Sip/jsf_pages/automobilistico/autAnalitico/autAnalitico.jsf?apenasPesquisa=false");
-		Thread.sleep(2000);
-
-		// pega a div que contem o form planejamento
-		WebElement divPlanejamento = driver.findElement(By.id("formE:planejamento_content"));
-
-		// clica para abrir o form planejamento, caso contrário não consegue ler a data
-		WebElement aPlanejamento = driver.findElement(By.id("formE:planejamento_toggler"));
-		aPlanejamento.findElement(By.tagName("span")).click();
+		Thread.sleep(3000);
 
 		// tenta ler a data na <td> que contem ela
-		WebElement td = divPlanejamento.findElement(By.cssSelector("td[width='40%']"));
+		Object jsReturn = js.executeScript("return document.getElementById('formE:planejamento_content').getElementsByTagName('td')[1].innerText;");
 
-		String dtHrStr = td != null ? StringUtils.trim(td.getText()) : "";
+		String dtHrStr = (jsReturn != null && jsReturn instanceof String) ? StringUtils.trim((String) jsReturn) : "";
+
 		Date parseDate = null;
 		if (StringUtils.isNotEmpty(dtHrStr)) {
 			parseDate = DateUtils.parseDate(dtHrStr, "dd/MM/yyyy HH:mm");
@@ -407,33 +627,43 @@ public class Main {
 	}
 
 	/**
-	 * Abre caixa de diálogo para pedir o Driver ao Usuário. Se não selecionar o correto, pega do caminho padrão que está na rede.
+	 * Pega o driver diretamente dos resources do projeto e extrai o mesmo na pasta raiz do usuário no SO em questão.<br>
+	 * 
+	 * Ex.: 'C:\Users\Sidney Rodrigues\ChromeDriver\chromedriver.exe'
 	 * 
 	 * @return
+	 * @throws Exception
 	 */
-	private static String getDriverPath() {
+	private static String getDriverPath() throws Exception {
 
-		JFileChooser fc = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
-		fc.setDialogTitle("Selecione o Driver do Google Chrome >>> 'chromedriver.exe'");
-		fc.setMultiSelectionEnabled(false);
-		fc.setAcceptAllFileFilterUsed(false);
-		fc.setFileFilter(new FileNameExtensionFilter("EXE FILES", "exe", "exe"));
+		String userHome = System.getProperty("user.home");
 
-		int aux = -1;
-		while (aux == -1) {
-			aux = fc.showOpenDialog(null);
+		String diretorio = userHome + File.separator + "ChromeDriver";
+
+		// cria o diretorio se ainda não existir
+		File f = new File(diretorio);
+		if (!f.exists()) {
+			try {
+				f.mkdirs();
+			} catch (Exception ex) {
+				throw new Exception("Não foi possível criar o diretório ChromeDriver no user.home >>> " + ex.getMessage());
+			}
 		}
 
-		File f = fc.getSelectedFile();
+		// copia o driver se ainda não existir
+		File chromeDriver = new File(diretorio + File.separator + "chromedriver.exe");
+		if (!chromeDriver.exists()) {
 
-		String driverPath = f != null ? f.getAbsolutePath() : "";
+			chromeDriver.createNewFile();
 
-		// Pega o caminho padrão do driver na rede se não selecionou o correto >>>>
-		// Z:\SISTEMAS\Troca de Arquivos\WebDriver
-		// FIXME - Hard Code do mal!!!!
-		if (driverPath == null || !driverPath.endsWith("chromedriver.exe")) {
-			driverPath = "Z:\\SISTEMAS\\Troca de Arquivos\\WebDriver\\chromedriver.exe";
+			ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+			URL resource = classLoader.getResource("chromedriver.exe");
+
+			org.apache.commons.io.FileUtils.copyURLToFile(resource, chromeDriver);
+
 		}
+
+		String driverPath = chromeDriver.getAbsolutePath();
 
 		return driverPath;
 
@@ -445,25 +675,48 @@ public class Main {
 	 * @param driver
 	 * @throws InterruptedException
 	 */
-	private static void login() throws InterruptedException {
+	private static void login() throws Exception {
 
 		String url = "http://sipnissan.com.br/Sip/login.jsf";
-		String user = "srodrigues";
-		String pass = "a1";
 
-		// Acessa a tela de Login do SIP
+		String user = properties.getProperty(propertieUser);
+		String pass = properties.getProperty(propertiePass);
+
+		if (StringUtils.isEmpty(user) || StringUtils.isEmpty(pass)) {
+			throw new Exception("Erro: Usuário e/ou Senha para login no SIP não foi informado no arquivo '" + propertiesDefaultName + "'.");
+		}
+
 		driver.get(url);
-		// Thread.sleep(3000);
+		Thread.sleep(2000);
 
-		WebElement userEl = driver.findElement(By.id("j_idt11:Login"));
-		userEl.sendKeys(user);
-
-		WebElement passEl = driver.findElement(By.id("j_idt11:Senha"));
-		passEl.sendKeys(pass);
-
-		WebElement btEl = driver.findElement(By.id("j_idt11:j_idt19"));
-		btEl.click();
+		js.executeScript("document.getElementById('j_idt11:Login').value = '" + user + "';");
+		js.executeScript("document.getElementById('j_idt11:Senha').value = '" + pass + "';");
+		js.executeScript("document.getElementById('j_idt11:j_idt19').click();");
 
 	}
+
+	// CODIGO QUE ENCONTREI NA INTERNET QUE GERA UM ARQUIVO DE CONFIGURAÇÃO
+	// ESTA COMENTADO POIS NÃO TIVE TEMPO DE DAR UMA BRINCADA COM ELE
+	// Em Excel.java usei um setProperty na linha 45 que supostamente força ISO-8859-1, que talvez possa ser implementado aqui dentro.
+
+	/*
+	 * import java.io.FileOutputStream; import java.io.IOException; import java.io.OutputStream; import java.util.Properties;
+	 * 
+	 * public class App { public static void main(String[] args) {
+	 * 
+	 * Properties prop = new Properties(); OutputStream output = null;
+	 * 
+	 * try {
+	 * 
+	 * output = new FileOutputStream("config.properties");
+	 * 
+	 * // set the properties value prop.setProperty("database", "localhost"); prop.setProperty("dbuser", "mkyong"); prop.setProperty("dbpassword", "password");
+	 * 
+	 * // save properties to project root folder prop.store(output, null);
+	 * 
+	 * } catch (IOException io) { io.printStackTrace(); } finally { if (output != null) { try { output.close(); } catch (IOException e) { e.printStackTrace(); } }
+	 * 
+	 * } } }
+	 */
 
 }
