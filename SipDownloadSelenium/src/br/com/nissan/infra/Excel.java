@@ -237,12 +237,12 @@ public class Excel {
 
 		try {
 
-			// Força para salvar em ISO-8859-1
 			File file = new File(path);
 			if(!file.exists()) {
 				file.createNewFile();
 			}
 			
+			// Força para salvar em ISO-8859-1
 			pw = new PrintWriter(file, "ISO-8859-1");
 
 			pw.write(sb.toString());
