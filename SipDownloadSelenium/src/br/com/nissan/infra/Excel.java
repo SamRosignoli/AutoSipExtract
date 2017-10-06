@@ -231,8 +231,9 @@ public class Excel {
 	public void gerarCsv(String path) {
 
 		try {
+			
 			pw = new PrintWriter(new File(path));
-
+			
 			pw.write(sb.toString());
 
 			System.out.println("Terminado!");
