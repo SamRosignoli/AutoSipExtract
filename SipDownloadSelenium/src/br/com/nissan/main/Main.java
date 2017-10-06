@@ -31,11 +31,8 @@ import br.com.nissan.infra.Excel;
 
 public class Main {
 
-	// TODO Implementar data e hora no nome do arquivo final
 	// TODO Salvar o arquivo final tanto na pasta para o BI quanto numa pasta de backup na própria máquina
-	// TODO Criar/ler arquivo de configuração
 	// TODO Substituir , por .
-	// TODO Forçar encoding ISO 8859-1
 
 	// contantes
 	private static final String propertiesDefaultName = "sip_download_config.properties";
