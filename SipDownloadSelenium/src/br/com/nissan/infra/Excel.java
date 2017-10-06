@@ -44,9 +44,9 @@ public class Excel {
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws Exception {
+		
 
 		String csvPath = "D:\\LocalData\\xl02926\\Documents";
-		
 		
 
 		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APJ JAPAN - 26.xls");
@@ -219,8 +219,8 @@ public class Excel {
 			char indexString = str != null ? charAt : 'a';
 			// Boolean para verificar se o caractere selecionado é um caracter de controle ASCII
 			boolean c = CharUtils.isAsciiControl(indexString);
-			// Boolean para verificar se o caracter selecionado é um ;
-			boolean c2 = indexString == ';' ? true : false;
+			//
+			boolean c2 = indexString == ';' || indexString == '"' ? true : false;
 			//Verificação c=true ou c2=true
 			if (c || c2) {
 				retorno = StringUtils.replace(retorno, ("" + charAt), "");

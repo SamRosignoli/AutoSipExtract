@@ -3,6 +3,7 @@ package br.com.nissan.main;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URL;
 import java.text.ParseException;
@@ -13,6 +14,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -30,8 +34,11 @@ import br.com.nissan.domain.User;
 import br.com.nissan.infra.Excel;
 
 public class Main {
+	
+	//TODO Criamos e salvamos o log. Falta popular o arquivo com os erros e êxitos e salvar com o mesmo nome do CSV
+	//TODO Setar um timer para o processo inteiro e para cada concessionaria e mostrar no log
 
-	// constantes
+	//constantes
 	private static final String propertiesDefaultName = "sip_download_config.properties";
 	private static final String propertieCsvPath = "csv-path-download";
 	private static final String propertieUser = "user";
@@ -49,7 +56,9 @@ public class Main {
 	private static Properties properties;
 
 	public static void main(String[] args) {
-
+		
+		criaLogger();
+	    
 		try {
 
 			// Antes de qualquer outra coisa define o arquivo properties
@@ -177,6 +186,8 @@ public class Main {
 
 			// Por fim, cria o arquivo final, copia o conteúdo para ele, salva e fecha
 			excel.gerarCsv(csvPath);
+			
+			
 
 			System.out.println("Arquivo final do SIP gerado com sucesso!");
 
@@ -196,6 +207,34 @@ public class Main {
 
 		}
 
+	}
+
+	private static void criaLogger() {
+		Logger logger = Logger.getLogger("SipLog");
+	    FileHandler fh = null;
+
+	    try {
+
+	        //Configura o logger com handler e formatter
+	        fh = new FileHandler(System.getProperty("user.home") + "\\log.log");
+	        logger.addHandler(fh);
+	        SimpleFormatter formatter = new SimpleFormatter();
+	        fh.setFormatter(formatter);
+
+	        //escreve mensagens no log 
+	        logger.info("INICIANDO EXTRACAO");
+
+	    } catch (SecurityException e) {
+	        e.printStackTrace();
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+	    
+	    //Tipos de log
+	    logger.severe("EXEMPLO DE ERRO SEVERO");
+	    logger.warning("EXEMPLO DE AVISO");
+	    logger.info("EXEMPLO DE INFO");
+	    fh.close();
 	}
 
 	/**
