@@ -169,6 +169,7 @@ public class Main {
 						System.out.println("");
 
 					}
+					
 					// verifica se houve carga do arquivo procurando pela data da carga. Quando a carga não feita
 					// o campo de data fica vazio
 					if (dtHrArquivo == null) {
@@ -181,7 +182,6 @@ public class Main {
 			}
 
 			// Por fim, cria o arquivo final, copia o conteúdo para ele, salva e fecha
-			// TODO - salvar o arquivo final no diretorio de onde o BI vai ler
 			excel.gerarCsv(csvPath);
 
 			System.out.println("Arquivo final do SIP gerado com sucesso!");
