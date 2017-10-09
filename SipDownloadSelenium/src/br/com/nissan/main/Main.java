@@ -34,11 +34,11 @@ import br.com.nissan.domain.User;
 import br.com.nissan.infra.Excel;
 
 public class Main {
-	
-	//TODO Criamos e salvamos o log. Falta popular o arquivo com os erros e êxitos e salvar com o mesmo nome do CSV
-	//TODO Setar um timer para o processo inteiro e para cada concessionaria e mostrar no log
 
-	//constantes
+	// TODO Criamos e salvamos o log. Falta popular o arquivo com os erros e êxitos e salvar com o mesmo nome do CSV
+	// TODO Setar um timer para o processo inteiro e para cada concessionaria e mostrar no log
+
+	// constantes
 	private static final String propertiesDefaultName = "sip_download_config.properties";
 	private static final String propertieCsvPath = "csv-path-download";
 	private static final String propertieUser = "user";
@@ -56,9 +56,9 @@ public class Main {
 	private static Properties properties;
 
 	public static void main(String[] args) {
-		
+
 		criaLogger();
-	    
+
 		try {
 
 			// Antes de qualquer outra coisa define o arquivo properties
@@ -117,6 +117,7 @@ public class Main {
 					// Seleciona o usuário e extrai a Data/Hora da Carga do Arquivo
 					// tenta até o último usuário, se não houver, retorna nulo/vazio
 					Date dtHrArquivo = getDataHoraCargaArquivo();
+					Thread.sleep(1000);
 
 					// Se não houve carga de arquivo, ignora e parte para o próximo
 					if (dtHrArquivo != null) {
@@ -124,11 +125,16 @@ public class Main {
 						System.out.println("Extraindo o arquivo da concessionária " + descDealer);
 						System.out.println("Data/Hora da Carga do Arquivo: " + new SimpleDateFormat("dd/MM/yyyy HH:mm").format(dtHrArquivo));
 
-						// clica em pesquisar
-						js.executeScript("document.getElementById('formE:modelButton').getElementsByTagName('a')[3].click();");
+						clickPesquisar();
 
 						// verifica se terminou a busca
-						waitPesquisar();
+						boolean pesquisaOk = waitPesquisar();
+						if (!pesquisaOk) {
+							// Log aqui da concessionária que não conseguiu executar a pesquisa depois de 5mn (300seg)
+							System.out.println("Não conseguiu realizar a pesquisa para a concessinária " + descDealer);
+							System.out.println("");
+							continue;
+						}
 
 						File xls = null;
 						int count = 0;
@@ -172,7 +178,7 @@ public class Main {
 						System.out.println("");
 
 					}
-					
+
 					// verifica se houve carga do arquivo procurando pela data da carga. Quando a carga não feita
 					// o campo de data fica vazio
 					if (dtHrArquivo == null) {
@@ -186,8 +192,6 @@ public class Main {
 
 			// Por fim, cria o arquivo final, copia o conteúdo para ele, salva e fecha
 			excel.gerarCsv(csvPath);
-			
-			
 
 			System.out.println("Arquivo final do SIP gerado com sucesso!");
 
@@ -209,32 +213,39 @@ public class Main {
 
 	}
 
+	/**
+	 * Clica em pesquisar
+	 */
+	private static void clickPesquisar() {
+		js.executeScript("document.getElementById('formE:modelButton').getElementsByTagName('a')[3].click();");
+	}
+
 	private static void criaLogger() {
 		Logger logger = Logger.getLogger("SipLog");
-	    FileHandler fh = null;
+		FileHandler fh = null;
 
-	    try {
+		try {
 
-	        //Configura o logger com handler e formatter
-	        fh = new FileHandler(System.getProperty("user.home") + "\\log.log");
-	        logger.addHandler(fh);
-	        SimpleFormatter formatter = new SimpleFormatter();
-	        fh.setFormatter(formatter);
+			// Configura o logger com handler e formatter
+			fh = new FileHandler(System.getProperty("user.home") + "\\log.log");
+			logger.addHandler(fh);
+			SimpleFormatter formatter = new SimpleFormatter();
+			fh.setFormatter(formatter);
 
-	        //escreve mensagens no log 
-	        logger.info("INICIANDO EXTRACAO");
+			// escreve mensagens no log
+			logger.info("INICIANDO EXTRACAO");
 
-	    } catch (SecurityException e) {
-	        e.printStackTrace();
-	    } catch (IOException e) {
-	        e.printStackTrace();
-	    }
-	    
-	    //Tipos de log
-	    logger.severe("EXEMPLO DE ERRO SEVERO");
-	    logger.warning("EXEMPLO DE AVISO");
-	    logger.info("EXEMPLO DE INFO");
-	    fh.close();
+		} catch (SecurityException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// Tipos de log
+		logger.severe("EXEMPLO DE ERRO SEVERO");
+		logger.warning("EXEMPLO DE AVISO");
+		logger.info("EXEMPLO DE INFO");
+		fh.close();
 	}
 
 	/**
@@ -403,21 +414,48 @@ public class Main {
 	}
 
 	/**
-	 * Depois que clica em pesquisar, verifica através deste método se terminou a busca <br>
-	 * olhando se a TD 'Data da Pesquisa' foi preenchida.
+	 * Depois que clica em pesquisar, verifica se terminou a busca olhando se a TD 'Data da Pesquisa' foi preenchida.<br>
+	 * <br>
+	 * 
+	 * Também, para evitar que entre em um 'Loop Eterno', tenta clicar novamente em Pesquisar depois de um certo tempo (a cada 1,20mn - 80 segundos).<br>
+	 * <br>
+	 * 
+	 * Caso fique mais de 5mn parado no loop, passa para o próximo dealer!
+	 * 
 	 */
-	private static void waitPesquisar() {
+	private static boolean waitPesquisar() {
 		Object jsReturn = null;
 		String dtPesquisa = null;
-		while (StringUtils.isEmpty(dtPesquisa)) {
+		int ctToClick = 0;
+		boolean isEmpty = true;
+		while (isEmpty) {
+
 			try {
+
 				jsReturn = js.executeScript("return document.getElementById('formE:planejamento_content').getElementsByTagName('td')[3].innerText;");
 				dtPesquisa = (jsReturn != null && jsReturn instanceof String) ? StringUtils.trim((String) jsReturn) : "";
 				Thread.sleep(1000);
+
+				ctToClick++;
+				if (ctToClick == 80 || ctToClick == 160 || ctToClick == 240) {
+					clickPesquisar();
+					Thread.sleep(1000);
+				}
+
+				if (ctToClick == 300) {
+					return false;
+				}
+
+				isEmpty = StringUtils.isEmpty(dtPesquisa);
+
 			} catch (Exception e) {
 				// ignore
 			}
+
 		}
+
+		return !isEmpty;
+
 	}
 
 	/**
