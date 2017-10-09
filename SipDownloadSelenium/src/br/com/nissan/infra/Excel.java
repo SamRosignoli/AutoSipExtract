@@ -8,6 +8,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.logging.Logger;
 
 import javax.swing.JOptionPane;
 
@@ -35,6 +36,8 @@ public class Excel {
 	
 	private String biFile = "D:\\LocalData\\xl02926\\ff_estoque_material_varejo.csv";
 	
+	private Logger logger;
+	
 	File biFil = new File(biFile);
 
 	/**
@@ -53,7 +56,7 @@ public class Excel {
 
 		Date date = DateUtils.parseDate("03/10/2017 14:30", "dd/MM/yyyy HH:mm");
 
-		Excel e = new Excel();
+		Excel e = new Excel(Logger.getLogger("SipLog"));
 		e.incluirColunaDataHora(date, newFile);
 
 		e.gerarCsv(csvPath);
@@ -66,9 +69,11 @@ public class Excel {
 
 	/**
 	 * aponta sb como uma nova StringBuilder
+	 * @param logger 
 	 */
-	public Excel() {
+	public Excel(Logger logger) {
 		sb = new StringBuilder();
+		this.logger = logger;
 	}
 
 	/**
@@ -242,7 +247,6 @@ public class Excel {
 
 		DateFormat df = new SimpleDateFormat("yyyyMMdd_HHmm");
 		path = path + "\\SIP_" + df.format(Calendar.getInstance().getTime()) + ".csv";
-
 		PrintWriter pw = null;
 		PrintWriter pwBI = null;
 
@@ -261,10 +265,9 @@ public class Excel {
 			
 			pw.write(sb.toString());
 			pwBI.write(sb.toString());
-			
-			System.out.println("Terminado!");
 
 		} catch (Exception e) {
+			logger.warning("Erro ao gerar o arquivo CSV Final >>> " + e.getMessage());
 			throw new Exception("Erro ao gerar o arquivo CSV Final >>> " + e.getMessage());
 
 		} finally {
@@ -280,7 +283,6 @@ public class Excel {
 				// ignore
 			}
 		}
-
 	}
 
 	// CÓDIGO ABAIXO NÃO UTILIZADO, SOMENTE EXEMPLO

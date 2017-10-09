@@ -6,9 +6,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URL;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -35,14 +37,15 @@ import br.com.nissan.infra.Excel;
 
 public class Main {
 
-	// TODO Criamos e salvamos o log. Falta popular o arquivo com os erros e êxitos e salvar com o mesmo nome do CSV
-	// TODO Setar um timer para o processo inteiro e para cada concessionaria e mostrar no log
+	// TODO O método para salvar o nome do log com o mesmo nome do CSV funciona, porém não é o meio mais bonito
 
 	// constantes
 	private static final String propertiesDefaultName = "sip_download_config.properties";
 	private static final String propertieCsvPath = "csv-path-download";
 	private static final String propertieUser = "user";
 	private static final String propertiePass = "pass";
+	private static Logger logger = Logger.getLogger("SipLog");
+	private static FileHandler fh = null;
 
 	// variáveis
 	private static WebDriver driver = null;
@@ -57,9 +60,15 @@ public class Main {
 
 	public static void main(String[] args) {
 
-		criaLogger();
+		confLogger();
 
 		try {
+
+			// escreve mensagens no log
+			logger.info("INICIANDO EXTRACAO");
+
+			// pega o tempo do sistema em nanosegundos
+			long startTime = System.nanoTime();
 
 			// Antes de qualquer outra coisa define o arquivo properties
 			properties = getPropertiesConfig();
@@ -71,7 +80,7 @@ public class Main {
 			csvPath = getCsvPath();
 
 			// Manipula os arquivos Excel com Apache POI
-			Excel excel = new Excel();
+			Excel excel = new Excel(logger);
 
 			// deleta todos os arquivos existentes na pasta sempre que executar uma nova rodada
 			FileUtils.cleanDirectory(new File(downloadFilepath));
@@ -96,6 +105,8 @@ public class Main {
 			List<Concessionaria> set = optionsToDealerList();
 			int ct = 0;
 			for (Concessionaria conc : set) {
+				// inicia o timer da concessionária
+				long startCons = System.nanoTime();
 
 				String codDealer = conc.getCodigo();
 				String descDealer = conc.getDescricao();
@@ -121,9 +132,10 @@ public class Main {
 
 					// Se não houve carga de arquivo, ignora e parte para o próximo
 					if (dtHrArquivo != null) {
-
-						System.out.println("Extraindo o arquivo da concessionária " + descDealer);
-						System.out.println("Data/Hora da Carga do Arquivo: " + new SimpleDateFormat("dd/MM/yyyy HH:mm").format(dtHrArquivo));
+						System.out.println("/n");
+						logger.info("Extraindo o arquivo da concessionaria " + descDealer);
+						String dtHrCarga = new SimpleDateFormat("dd/MM/yyyy HH:mm").format(dtHrArquivo);
+						logger.info("Data/Hora da Carga do Arquivo: " + dtHrCarga);
 
 						clickPesquisar();
 
@@ -131,8 +143,7 @@ public class Main {
 						boolean pesquisaOk = waitPesquisar();
 						if (!pesquisaOk) {
 							// Log aqui da concessionária que não conseguiu executar a pesquisa depois de 5mn (300seg)
-							System.out.println("Não conseguiu realizar a pesquisa para a concessinária " + descDealer);
-							System.out.println("");
+							logger.warning("Nao foi possivel realizar a pesquisa para a concessinaria " + descDealer);
 							continue;
 						}
 
@@ -145,7 +156,7 @@ public class Main {
 								// clica para fazer o download
 								js.executeScript("document.getElementById('formE:j_idt945').parentElement.click();");
 							} catch (Exception e) {
-								System.out.println("Download ainda em andamento para a concessionária " + descDealer);
+								logger.info("Download ainda em andamento para a concessionária " + descDealer);
 								// se teve erro, ignora e espera mais 5 segundos
 								// pode ocorrer de o download ainda estar em andamento
 								// neste caso vai gerar erro em uma nova tentativa e por isso captura aqui
@@ -174,16 +185,22 @@ public class Main {
 						}
 
 						boolean ok = (xls != null);
-						System.out.println("Download " + descDealer + (ok ? " ok!" : " erro de time out!"));
-						System.out.println("");
+						//
+						long stopCons = System.nanoTime();
+						if (ok) {
+							logger.info("Download " + descDealer + " ok!");
+							// subtrai o tempo final extraído do sistema do tempo inicial e divide por 1000000000 para dar a resposta em segundos
+							logger.info("Tempo para download " + descDealer + ": " + (stopCons - startCons) / 1000000000 + " segundos.");
+						} else {
+							logger.warning("Download " + descDealer + " erro de timeout!");
+						}
 
 					}
 
 					// verifica se houve carga do arquivo procurando pela data da carga. Quando a carga não feita
 					// o campo de data fica vazio
 					if (dtHrArquivo == null) {
-						System.out.println("Download " + descDealer + " não ocorreu por falta de carga do arquivo");
-						System.out.println("");
+						logger.warning("Download " + descDealer + " nao ocorreu por falta de carga do arquivo");
 					}
 
 				}
@@ -192,8 +209,14 @@ public class Main {
 
 			// Por fim, cria o arquivo final, copia o conteúdo para ele, salva e fecha
 			excel.gerarCsv(csvPath);
+			logger.info("Arquivo final do SIP gerado com sucesso!");
 
-			System.out.println("Arquivo final do SIP gerado com sucesso!");
+			long stopTime = System.nanoTime();
+			logger.info("Tempo total do processo: " + (((stopTime - startTime) / 1000000000) / 60) + " minutos.");
+			fh.close();
+			DateFormat dfLog = new SimpleDateFormat("yyyyMMdd_HHmm");
+			new File(System.getProperty("user.home") + "\\log.log").renameTo(new File(csvPath + "\\log_" +dfLog.format(Calendar.getInstance().getTime()) + ".log"));
+
 
 		} catch (Exception e) {
 			// JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
@@ -220,20 +243,14 @@ public class Main {
 		js.executeScript("document.getElementById('formE:modelButton').getElementsByTagName('a')[3].click();");
 	}
 
-	private static void criaLogger() {
-		Logger logger = Logger.getLogger("SipLog");
-		FileHandler fh = null;
+	private static void confLogger() {
 
 		try {
-
 			// Configura o logger com handler e formatter
 			fh = new FileHandler(System.getProperty("user.home") + "\\log.log");
 			logger.addHandler(fh);
 			SimpleFormatter formatter = new SimpleFormatter();
 			fh.setFormatter(formatter);
-
-			// escreve mensagens no log
-			logger.info("INICIANDO EXTRACAO");
 
 		} catch (SecurityException e) {
 			e.printStackTrace();
@@ -241,11 +258,9 @@ public class Main {
 			e.printStackTrace();
 		}
 
-		// Tipos de log
-		logger.severe("EXEMPLO DE ERRO SEVERO");
-		logger.warning("EXEMPLO DE AVISO");
-		logger.info("EXEMPLO DE INFO");
-		fh.close();
+		/*
+		 * Tipos de log logger.severe("EXEMPLO DE ERRO SEVERO"); logger.warning("EXEMPLO DE AVISO"); logger.info("EXEMPLO DE INFO");
+		 */
 	}
 
 	/**
@@ -260,10 +275,10 @@ public class Main {
 
 		int lastIndexOf = projectDir.lastIndexOf("\\");
 		String diretorio = StringUtils.substring(projectDir, 0, lastIndexOf);
-
 		// cria o diretorio se ainda não existir
 		File f = new File(diretorio);
 		if (!f.exists()) {
+			logger.warning("Não foi possível encontrar o diretório '" + diretorio + "' para gerar o arquivo '" + propertiesDefaultName + "'.");
 			throw new Exception("Não foi possível encontrar o diretório '" + diretorio + "' para gerar o arquivo '" + propertiesDefaultName + "'.");
 		}
 
@@ -274,6 +289,7 @@ public class Main {
 				propsFile.createNewFile();
 				writeDefaultProperties(propsPath);
 			} catch (Exception e) {
+				logger.warning("Não foi possível criar o arquivo 'sip_download_config.properties' >>> " + e.getMessage());
 				throw new Exception("Não foi possível criar o arquivo 'sip_download_config.properties' >>> " + e.getMessage());
 			}
 		}
@@ -303,12 +319,13 @@ public class Main {
 			prop.load(in);
 
 			Set<Object> keySet = prop.keySet();
-			System.out.println("Arquivo '" + propertiesDefaultName + "' carregado com sucesso:");
+			logger.info("Arquivo '" + propertiesDefaultName + "' carregado com sucesso:");
 			for (Object obj : keySet) {
-				System.out.println(obj + " = " + prop.getProperty((String) obj));
+				logger.info(obj + " = " + prop.getProperty((String) obj));
 			}
 
 		} catch (Exception e) {
+			logger.warning("Erro ao carregar o arquivo de configuração '" + propertiesDefaultName + "' >>> " + e.getMessage());
 			throw new Exception("Erro ao carregar o arquivo de configuração '" + propertiesDefaultName + "' >>> " + e.getMessage());
 
 		} finally {
@@ -374,6 +391,7 @@ public class Main {
 			try {
 				dir.mkdirs();
 			} catch (Exception ex) {
+				logger.warning("Não foi possível criar o diretório para gerar o CSV dos arquivos SIP >>> " + ex.getMessage());
 				throw new Exception("Não foi possível criar o diretório para gerar o CSV dos arquivos SIP >>> " + ex.getMessage());
 			}
 		}
@@ -574,6 +592,7 @@ public class Main {
 			try {
 				theDir.mkdirs();
 			} catch (Exception ex) {
+				logger.warning("Não foi possível criar o diretório para extração dos arquivos SIP >>> " + ex.getMessage());
 				throw new Exception("Não foi possível criar o diretório para extração dos arquivos SIP >>> " + ex.getMessage());
 			}
 
@@ -717,6 +736,7 @@ public class Main {
 			try {
 				f.mkdirs();
 			} catch (Exception ex) {
+				logger.warning("Não foi possível criar o diretório ChromeDriver no user.home >>> " + ex.getMessage());
 				throw new Exception("Não foi possível criar o diretório ChromeDriver no user.home >>> " + ex.getMessage());
 			}
 		}
@@ -754,6 +774,7 @@ public class Main {
 		String pass = properties.getProperty(propertiePass);
 
 		if (StringUtils.isEmpty(user) || StringUtils.isEmpty(pass)) {
+			logger.warning("Erro: Usuário e/ou Senha para login no SIP não foi informado no arquivo '" + propertiesDefaultName + "'.");
 			throw new Exception("Erro: Usuário e/ou Senha para login no SIP não foi informado no arquivo '" + propertiesDefaultName + "'.");
 		}
 
@@ -765,29 +786,5 @@ public class Main {
 		js.executeScript("document.getElementById('j_idt11:j_idt19').click();");
 
 	}
-
-	// CODIGO QUE ENCONTREI NA INTERNET QUE GERA UM ARQUIVO DE CONFIGURAÇÃO
-	// ESTA COMENTADO POIS NÃO TIVE TEMPO DE DAR UMA BRINCADA COM ELE
-	// Em Excel.java usei um setProperty na linha 45 que supostamente força ISO-8859-1, que talvez possa ser implementado aqui dentro.
-
-	/*
-	 * import java.io.FileOutputStream; import java.io.IOException; import java.io.OutputStream; import java.util.Properties;
-	 * 
-	 * public class App { public static void main(String[] args) {
-	 * 
-	 * Properties prop = new Properties(); OutputStream output = null;
-	 * 
-	 * try {
-	 * 
-	 * output = new FileOutputStream("config.properties");
-	 * 
-	 * // set the properties value prop.setProperty("database", "localhost"); prop.setProperty("dbuser", "mkyong"); prop.setProperty("dbpassword", "password");
-	 * 
-	 * // save properties to project root folder prop.store(output, null);
-	 * 
-	 * } catch (IOException io) { io.printStackTrace(); } finally { if (output != null) { try { output.close(); } catch (IOException e) { e.printStackTrace(); } }
-	 * 
-	 * } } }
-	 */
 
 }
