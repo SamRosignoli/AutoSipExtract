@@ -34,7 +34,7 @@ public class Excel {
 
 	private final String crLf = Character.toString((char) 13) + Character.toString((char) 10);
 	
-	// TODO - não pode ficar hardcode - tem que ler do properties igual foi feito com o CSV
+	// TODO - não pode ficar hardcode - vamo salvar o nosso CSV em uma pasta padrão no 'user.home' já o do BI vai usar a propertie 'csv-path-download'
 	private String biFile = "D:\\LocalData\\xl02926\\ff_estoque_material_varejo.csv";
 	
 	private Logger logger;

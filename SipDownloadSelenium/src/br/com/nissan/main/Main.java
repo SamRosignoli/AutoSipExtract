@@ -42,8 +42,10 @@ public class Main {
 	private static final String propertieCsvPath = "csv-path-download";
 	private static final String propertieUser = "user";
 	private static final String propertiePass = "pass";
+
 	private static Logger logger = Logger.getLogger("SipLog");
 	private static FileHandler fh = null;
+	private static final String defaultLogFile = System.getProperty("user.home") + "\\log.log";
 
 	// variáveis
 	private static WebDriver driver = null;
@@ -227,7 +229,7 @@ public class Main {
 			logger.info("Tempo total do processo: " + (((stopTime - startTime) / 1000000000) / 60) + " minutos.");
 			fh.close();
 			DateFormat dfLog = new SimpleDateFormat("yyyyMMdd_HHmm");
-			new File(System.getProperty("user.home") + "\\log.log").renameTo(new File(csvPath + "\\SIP_" + dfLog.format(Calendar.getInstance().getTime()) + ".log"));
+			new File(defaultLogFile).renameTo(new File(csvPath + "\\SIP_" + dfLog.format(Calendar.getInstance().getTime()) + ".log"));
 
 		} catch (Exception e) {
 			// JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
@@ -258,7 +260,7 @@ public class Main {
 
 		try {
 			// Configura o logger com handler e formatter
-			fh = new FileHandler(System.getProperty("user.home") + "\\log.log");
+			fh = new FileHandler(defaultLogFile);
 			logger.addHandler(fh);
 			SimpleFormatter formatter = new SimpleFormatter();
 			fh.setFormatter(formatter);
