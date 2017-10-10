@@ -37,8 +37,6 @@ import br.com.nissan.infra.Excel;
 
 public class Main {
 
-	// TODO O método para salvar o nome do log com o mesmo nome do CSV funciona, porém não é o meio mais bonito
-
 	// constantes
 	private static final String propertiesDefaultName = "sip_download_config.properties";
 	private static final String propertieCsvPath = "csv-path-download";
@@ -71,22 +69,32 @@ public class Main {
 			long startTime = System.nanoTime();
 
 			// Antes de qualquer outra coisa define o arquivo properties
+			logger.info("Carregando o arquivo properties.");
 			properties = getPropertiesConfig();
+			logger.info("Properties OK!");
 
 			// Verifica se o diretório já existe, caso contrário cria um novo
+			logger.info("Configurando Diretório de Download.");
 			downloadFilepath = getDownloadFilepath();
+			logger.info("Diretório de Download OK >>> " + downloadFilepath);
 
 			// Define o diretório para salvar o CSV
+			logger.info("Configurando Diretório do Arquivo CSV final.");
 			csvPath = getCsvPath();
+			logger.info("Diretório do Arquivo CSV final OK >>> " + csvPath);
 
 			// Manipula os arquivos Excel com Apache POI
 			Excel excel = new Excel(logger);
 
 			// deleta todos os arquivos existentes na pasta sempre que executar uma nova rodada
+			logger.info("Limpando Diretório de Downloads.");
 			FileUtils.cleanDirectory(new File(downloadFilepath));
+			logger.info("Limpeza OK!");
 
+			logger.info("Carregando o Driver do Chrome.");
 			String driverPath = getDriverPath();
 			System.setProperty("webdriver.chrome.driver", driverPath);
+			logger.info("Driver OK!");
 
 			// abre o Chrome já com as opções configuradas (Ex.: maximizado)
 			driver = new ChromeDriver(getChromeOptions());
@@ -97,7 +105,9 @@ public class Main {
 			js = (JavascriptExecutor) driver;
 
 			// faz o login
+			logger.info("Login no SIP.");
 			login();
+			logger.info("Login OK.");
 			Thread.sleep(2000);
 
 			// Iteração em todas as concessionárias existentes no Select da página para baixar o arquivo analítico
@@ -143,7 +153,7 @@ public class Main {
 						boolean pesquisaOk = waitPesquisar();
 						if (!pesquisaOk) {
 							// Log aqui da concessionária que não conseguiu executar a pesquisa depois de 5mn (300seg)
-							logger.warning("Nao foi possivel realizar a pesquisa para a concessinaria " + descDealer);
+							logger.warning("Nao foi possivel realizar a pesquisa para a concessionária " + descDealer + " porque excedeu o tempo de 5mn para retornar resultado.");
 							continue;
 						}
 
@@ -177,7 +187,9 @@ public class Main {
 								// Neste caso, faz o navegador voltar e tenta o download de novo.
 								boolean erro500 = isErro500();
 								if (erro500) {
+									logger.info("Erro 500 na concessionária " + descDealer);
 									driver.navigate().back();
+									logger.info("Nova tentativa...");
 								}
 								Thread.sleep(3000);
 							}
@@ -215,8 +227,7 @@ public class Main {
 			logger.info("Tempo total do processo: " + (((stopTime - startTime) / 1000000000) / 60) + " minutos.");
 			fh.close();
 			DateFormat dfLog = new SimpleDateFormat("yyyyMMdd_HHmm");
-			new File(System.getProperty("user.home") + "\\log.log").renameTo(new File(csvPath + "\\log_" +dfLog.format(Calendar.getInstance().getTime()) + ".log"));
-
+			new File(System.getProperty("user.home") + "\\log.log").renameTo(new File(csvPath + "\\SIP_" + dfLog.format(Calendar.getInstance().getTime()) + ".log"));
 
 		} catch (Exception e) {
 			// JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
@@ -278,23 +289,28 @@ public class Main {
 		// cria o diretorio se ainda não existir
 		File f = new File(diretorio);
 		if (!f.exists()) {
-			logger.warning("Não foi possível encontrar o diretório '" + diretorio + "' para gerar o arquivo '" + propertiesDefaultName + "'.");
-			throw new Exception("Não foi possível encontrar o diretório '" + diretorio + "' para gerar o arquivo '" + propertiesDefaultName + "'.");
+			String msg = "Não foi possível encontrar o diretório '" + diretorio + "' para gerar o arquivo '" + propertiesDefaultName + "'.";
+			logger.severe(msg);
+			throw new Exception(msg);
 		}
 
 		String propsPath = diretorio + File.separator + propertiesDefaultName;
 		File propsFile = new File(propsPath);
 		if (!propsFile.exists()) {
 			try {
+				logger.info("Arquivo properties inexistente, criando arquivo padrão.");
 				propsFile.createNewFile();
 				writeDefaultProperties(propsPath);
+				logger.info("Arquivo de properties padrão criado com sucesso");
 			} catch (Exception e) {
-				logger.warning("Não foi possível criar o arquivo 'sip_download_config.properties' >>> " + e.getMessage());
-				throw new Exception("Não foi possível criar o arquivo 'sip_download_config.properties' >>> " + e.getMessage());
+				String msg = "Não foi possível criar o arquivo " + propertiesDefaultName + "' >>> " + e.getMessage();
+				logger.severe(msg);
+				throw new Exception(msg);
 			}
 		}
 
 		Properties prop = loadProperties(propsFile);
+
 		return prop;
 
 	}
@@ -325,8 +341,9 @@ public class Main {
 			}
 
 		} catch (Exception e) {
-			logger.warning("Erro ao carregar o arquivo de configuração '" + propertiesDefaultName + "' >>> " + e.getMessage());
-			throw new Exception("Erro ao carregar o arquivo de configuração '" + propertiesDefaultName + "' >>> " + e.getMessage());
+			String msg = "Erro ao carregar o arquivo de configuração '" + propertiesDefaultName + "' >>> " + e.getMessage();
+			logger.severe(msg);
+			throw new Exception(msg);
 
 		} finally {
 			try {
@@ -391,8 +408,9 @@ public class Main {
 			try {
 				dir.mkdirs();
 			} catch (Exception ex) {
-				logger.warning("Não foi possível criar o diretório para gerar o CSV dos arquivos SIP >>> " + ex.getMessage());
-				throw new Exception("Não foi possível criar o diretório para gerar o CSV dos arquivos SIP >>> " + ex.getMessage());
+				String msg = "Não foi possível criar o diretório para gerar o CSV dos arquivos SIP >>> " + ex.getMessage();
+				logger.severe(msg);
+				throw new Exception(msg);
 			}
 		}
 
@@ -592,8 +610,9 @@ public class Main {
 			try {
 				theDir.mkdirs();
 			} catch (Exception ex) {
-				logger.warning("Não foi possível criar o diretório para extração dos arquivos SIP >>> " + ex.getMessage());
-				throw new Exception("Não foi possível criar o diretório para extração dos arquivos SIP >>> " + ex.getMessage());
+				String msg = "Não foi possível criar o diretório para extração dos arquivos SIP >>> " + ex.getMessage();
+				logger.severe(msg);
+				throw new Exception(msg);
 			}
 
 		}
@@ -736,8 +755,9 @@ public class Main {
 			try {
 				f.mkdirs();
 			} catch (Exception ex) {
-				logger.warning("Não foi possível criar o diretório ChromeDriver no user.home >>> " + ex.getMessage());
-				throw new Exception("Não foi possível criar o diretório ChromeDriver no user.home >>> " + ex.getMessage());
+				String msg = "Não foi possível criar o diretório ChromeDriver no user.home >>> " + ex.getMessage();
+				logger.severe(msg);
+				throw new Exception(msg);
 			}
 		}
 
@@ -774,8 +794,9 @@ public class Main {
 		String pass = properties.getProperty(propertiePass);
 
 		if (StringUtils.isEmpty(user) || StringUtils.isEmpty(pass)) {
-			logger.warning("Erro: Usuário e/ou Senha para login no SIP não foi informado no arquivo '" + propertiesDefaultName + "'.");
-			throw new Exception("Erro: Usuário e/ou Senha para login no SIP não foi informado no arquivo '" + propertiesDefaultName + "'.");
+			String msg = "Erro: Usuário e/ou Senha para login no SIP não foi informado no arquivo '" + propertiesDefaultName + "'.";
+			logger.severe(msg);
+			throw new Exception(msg);
 		}
 
 		driver.get(url);

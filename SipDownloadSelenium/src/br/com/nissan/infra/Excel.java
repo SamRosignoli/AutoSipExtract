@@ -34,6 +34,7 @@ public class Excel {
 
 	private final String crLf = Character.toString((char) 13) + Character.toString((char) 10);
 	
+	// TODO - não pode ficar hardcode - tem que ler do properties igual foi feito com o CSV
 	private String biFile = "D:\\LocalData\\xl02926\\ff_estoque_material_varejo.csv";
 	
 	private Logger logger;
@@ -267,8 +268,9 @@ public class Excel {
 			pwBI.write(sb.toString());
 
 		} catch (Exception e) {
-			logger.warning("Erro ao gerar o arquivo CSV Final >>> " + e.getMessage());
-			throw new Exception("Erro ao gerar o arquivo CSV Final >>> " + e.getMessage());
+			String msg = "Erro ao gerar o arquivo CSV Final >>> " + e.getMessage();
+			logger.severe(msg);
+			throw new Exception(msg);
 
 		} finally {
 			try {
