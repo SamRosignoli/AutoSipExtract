@@ -33,13 +33,9 @@ public class Excel {
 	private boolean header = false;
 
 	private final String crLf = Character.toString((char) 13) + Character.toString((char) 10);
-	
-	private String biFile = "D:\\LocalData\\xl02926\\ff_estoque_material_varejo.csv";
-	
+		
 	private Logger logger;
 	
-	File biFil = new File(biFile);
-
 	/**
 	 * método main para testes
 	 * 
@@ -59,7 +55,7 @@ public class Excel {
 		Excel e = new Excel(Logger.getLogger("SipLog"));
 		e.incluirColunaDataHora(date, newFile);
 
-		e.gerarCsv(csvPath);
+		e.gerarCsv(csvPath, "");
 
 		String teste = null;
 		@SuppressWarnings("unused")
@@ -243,7 +239,7 @@ public class Excel {
 	 * @param path
 	 * @throws Exception
 	 */
-	public void gerarCsv(String path) throws Exception {
+	public void gerarCsv(String path, String biFile) throws Exception {
 
 		DateFormat df = new SimpleDateFormat("yyyyMMdd_HHmm");
 		path = path + "\\SIP_" + df.format(Calendar.getInstance().getTime()) + ".csv";
@@ -261,14 +257,14 @@ public class Excel {
 			//Arquivo local
 			pw = new PrintWriter(file, "ISO-8859-1");
 			//Arquivo para o BI (caminho da pasta ainda sujeito a alteração)
-			pwBI = new PrintWriter(biFile,"ISO-8859-1");
+			pwBI = new PrintWriter(biFile + "ff_estoque_material_varejo.csv","ISO-8859-1");
 			
 			pw.write(sb.toString());
 			pwBI.write(sb.toString());
 
 		} catch (Exception e) {
-			logger.warning("Erro ao gerar o arquivo CSV Final >>> " + e.getMessage());
-			throw new Exception("Erro ao gerar o arquivo CSV Final >>> " + e.getMessage());
+			String msg = "Erro ao gerar o arquivo CSV Final >>> " + e.getMessage();
+			throw new Exception(msg);
 
 		} finally {
 			try {
