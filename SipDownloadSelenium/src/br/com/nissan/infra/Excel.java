@@ -33,7 +33,14 @@ public class Excel {
 	private boolean header = false;
 
 	private final String crLf = Character.toString((char) 13) + Character.toString((char) 10);
+<<<<<<< HEAD
 		
+=======
+	
+	// TODO - não pode ficar hardcode - vamo salvar o nosso CSV em uma pasta padrão no 'user.home' já o do BI vai usar a propertie 'csv-path-download'
+	private String biFile = "D:\\LocalData\\xl02926\\ff_estoque_material_varejo.csv";
+	
+>>>>>>> refs/remotes/origin/master
 	private Logger logger;
 	
 	/**
@@ -264,6 +271,10 @@ public class Excel {
 
 		} catch (Exception e) {
 			String msg = "Erro ao gerar o arquivo CSV Final >>> " + e.getMessage();
+<<<<<<< HEAD
+=======
+			logger.severe(msg);
+>>>>>>> refs/remotes/origin/master
 			throw new Exception(msg);
 
 		} finally {
