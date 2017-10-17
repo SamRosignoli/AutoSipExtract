@@ -406,7 +406,7 @@ public class Main {
 	
 	private static void trataSipUser() {
 		//TODO passar o valor obtido em loadProperties
-		String teste = "9|995;47|1782;33|1900;";
+		String teste = "9|995;47|1782;33|1900;2|234;";
 		String conj = "";
 		String next = "";
 		String cons = "";
@@ -421,26 +421,32 @@ public class Main {
 		
 		System.out.println(counter);
 		
-		for( int j=1; j<=counter; j++ ) {
-			if (teste != null) {
-				System.out.println(conj);
-				System.out.println(cons);
-				System.out.println(user);
-				System.out.println(next);
-		
-				conj = teste.substring(0, teste.indexOf(';'));
-				next = teste.replace(conj+";", "");
-				//separa o código da concessionaria
-				cons = conj.substring(0, conj.indexOf('|'));
-				//separa o código do usuário
-				user = conj.substring(conj.indexOf('|')+1);
-				teste = next;
-				
-				//TODO o programa deverá entender que na concessionária X, o usuário Y deve ser utilizado
+		if (teste != "") {
+			for( int j=1; j<=counter; j++ ) {
+				if (teste != null) {
+					conj = teste.substring(0, teste.indexOf(';'));
+					next = teste.replace(conj+";", "");
+					//separa o código da concessionaria
+					cons = conj.substring(0, conj.indexOf('|'));
+					//separa o código do usuário
+					user = conj.substring(conj.indexOf('|')+1);
+					teste = next;
+					
+					System.out.println(conj);
+					System.out.println(cons);
+					System.out.println(user);
+					System.out.println(next);
+					
+
+
+					
+					//TODO o programa deverá entender que na concessionária X, o usuário Y deve ser utilizado
+				}
 			}
-			else {
-				
-			}
+			logger.info("Usuários de exceção carregados.");
+		}
+		else {
+			logger.info("Não há usuários de exceção!");
 		}
 		
 	}
