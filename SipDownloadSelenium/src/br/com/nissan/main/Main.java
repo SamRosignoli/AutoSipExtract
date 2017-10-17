@@ -42,21 +42,15 @@ public class Main {
 	private static final String propertieCsvPath = "csv-path-download";
 	private static final String propertieUser = "user";
 	private static final String propertiePass = "pass";
-<<<<<<< HEAD
 	private static final String propertieSipUser = "sipUser";
-=======
->>>>>>> refs/remotes/origin/master
 
 	private static Logger logger = Logger.getLogger("SipLog");
 	private static FileHandler fh = null;
 	private static final String defaultLogFile = System.getProperty("user.home") + "\\log.log";
-<<<<<<< HEAD
 	
 	private static String lineSeparator = System.getProperty("line.separator");
 
 	private static HashMap<String, String> mapUsers = new HashMap<String, String>();
-=======
->>>>>>> refs/remotes/origin/master
 
 	// variáveis
 	private static WebDriver driver = null;
@@ -97,13 +91,8 @@ public class Main {
 
 			// Define o diretório para salvar o CSV
 			logger.info("Configurando Diretório do Arquivo CSV final.");
-<<<<<<< HEAD
 			csvBiPath = getCsvBiPath();
 			logger.info("Diretório do Arquivo CSV final OK >>> " + csvBiPath);
-=======
-			csvPath = getCsvPath();
-			logger.info("Diretório do Arquivo CSV final OK >>> " + csvPath);
->>>>>>> refs/remotes/origin/master
 
 			// Manipula os arquivos Excel com Apache POI
 			Excel excel = new Excel(logger);
@@ -177,11 +166,7 @@ public class Main {
 						boolean pesquisaOk = waitPesquisar();
 						if (!pesquisaOk) {
 							// Log aqui da concessionária que não conseguiu executar a pesquisa depois de 5mn (300seg)
-<<<<<<< HEAD
 							logger.warning("Nao foi possivel realizar a pesquisa para a concessionária " + descDealer + " porque excedeu o tempo de 5min para retornar resultado."+ lineSeparator);
-=======
-							logger.warning("Nao foi possivel realizar a pesquisa para a concessionária " + descDealer + " porque excedeu o tempo de 5mn para retornar resultado.");
->>>>>>> refs/remotes/origin/master
 							continue;
 						}
 
@@ -262,17 +247,7 @@ public class Main {
 			logger.info("Tempo total do processo: " + (((stopTime - startTime) / 1000000000) / 60) + " minutos.");
 			fh.close();
 			DateFormat dfLog = new SimpleDateFormat("yyyyMMdd_HHmm");
-<<<<<<< HEAD
 			new File(defaultLogFile).renameTo(new File(csvBiPath + "\\log_" + dfLog.format(Calendar.getInstance().getTime()) + ".log"));
-=======
-			new File(defaultLogFile).renameTo(new File(csvPath + "\\SIP_" + dfLog.format(Calendar.getInstance().getTime()) + ".log"));
-
-		} catch (Exception e) {
-			// JOptionPane.showMessageDialog(null, "Erro Indeterminado: " + e.getMessage(), tituloMessage, JOptionPane.ERROR_MESSAGE);
-			e.printStackTrace();
-
-		} finally {
->>>>>>> refs/remotes/origin/master
 			// fecha as conexões com o driver
 			if (driver != null) {
 				driver.close();
