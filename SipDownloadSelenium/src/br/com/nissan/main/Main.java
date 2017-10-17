@@ -15,8 +15,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.FileHandler;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
@@ -42,11 +42,15 @@ public class Main {
 	private static final String propertieCsvPath = "csv-path-download";
 	private static final String propertieUser = "user";
 	private static final String propertiePass = "pass";
-	private static final String propertieSipUser ="sipUser";
+	private static final String propertieSipUser = "sipUser";
 
 	private static Logger logger = Logger.getLogger("SipLog");
 	private static FileHandler fh = null;
 	private static final String defaultLogFile = System.getProperty("user.home") + "\\log.log";
+	
+	private static String lineSeparator = System.getProperty("line.separator");
+
+	private static HashMap<String, String> mapUsers = new HashMap<String, String>();
 
 	// variáveis
 	private static WebDriver driver = null;
@@ -56,25 +60,24 @@ public class Main {
 	private static String downloadFilepath;
 
 	private static String csvBiPath;
-	
+
 	private static String consUser;
 
 	private static Properties properties;
 
 	public static void main(String[] args) {
 
-		confLogger();
-
 		// pega o tempo do sistema em nanosegundos
 		long startTime = System.nanoTime();
-		
-		//Exception exLog = null;
-		
+
+		Exception exLog = null;
+
 		try {
+
+			confLogger();
 
 			// escreve mensagens no log
 			logger.info("INICIANDO EXTRACAO");
-
 
 			// Antes de qualquer outra coisa define o arquivo properties
 			logger.info("Carregando o arquivo properties.");
@@ -106,14 +109,13 @@ public class Main {
 
 			// abre o Chrome já com as opções configuradas (Ex.: maximizado)
 			driver = new ChromeDriver(getChromeOptions());
-
+			
 			// possibilita a execução de javascript
 			// faz todas as operações através de javascript por ser mais robusto que o método driver.click()
 			// o método driver.click() só funciona se estiver com a janela do browser ativa e com o elemento visível
 			js = (JavascriptExecutor) driver;
-			
-			
-			//trata a string sipUser que contém usuários específicos de uma certa concessionaria
+
+			// trata a string sipUser que contém usuários específicos de uma certa concessionaria
 			trataSipUser();
 
 			// faz o login
@@ -135,7 +137,7 @@ public class Main {
 
 				// ignora se for a opção '33 - Nissan Fábrica' ou a opção '1 - SIP Nissan'
 				if (!StringUtils.equalsIgnoreCase(codDealer, "33") && !StringUtils.equalsIgnoreCase(codDealer, "1")) {
-					
+
 					if (ct++ > 0) {
 						// para trocar de concessionária tem de obrigatoriamente clicar na home do SIP antes
 						driver.get("http://sipnissan.com.br/Sip/jsf_pages/home.jsf");
@@ -145,11 +147,11 @@ public class Main {
 					// Seleciona a concessionária e aguarda carregar
 					js.executeScript("document.getElementById('formEmp:empresa').value = '" + codDealer + "';");
 					js.executeScript("document.getElementById('formEmp:empresa').onchange();");
-					Thread.sleep(2000);
+					Thread.sleep(4000);
 
 					// Seleciona o usuário e extrai a Data/Hora da Carga do Arquivo
 					// tenta até o último usuário, se não houver, retorna nulo/vazio
-					Date dtHrArquivo = getDataHoraCargaArquivo();
+					Date dtHrArquivo = getDataHoraCargaArquivo(codDealer);
 					Thread.sleep(1000);
 
 					// Se não houve carga de arquivo, ignora e parte para o próximo
@@ -164,7 +166,7 @@ public class Main {
 						boolean pesquisaOk = waitPesquisar();
 						if (!pesquisaOk) {
 							// Log aqui da concessionária que não conseguiu executar a pesquisa depois de 5mn (300seg)
-							logger.warning("Nao foi possivel realizar a pesquisa para a concessionária " + descDealer + " porque excedeu o tempo de 5mn para retornar resultado.");
+							logger.warning("Nao foi possivel realizar a pesquisa para a concessionária " + descDealer + " porque excedeu o tempo de 5min para retornar resultado."+ lineSeparator);
 							continue;
 						}
 
@@ -213,9 +215,9 @@ public class Main {
 						if (ok) {
 							logger.info("Download " + descDealer + " ok!");
 							// subtrai o tempo final extraído do sistema do tempo inicial e divide por 1000000000 para dar a resposta em segundos
-							logger.info("Tempo para download " + descDealer + ": " + (stopCons - startCons) / 1000000000 + " segundos.");
+							logger.info("Tempo para download " + descDealer + ": " + (stopCons - startCons) / 1000000000 + " segundos." + lineSeparator);
 						} else {
-							logger.warning("Download " + descDealer + " erro de timeout!");
+							logger.warning("Download " + descDealer + " erro de timeout!" + lineSeparator);
 						}
 
 					}
@@ -223,32 +225,29 @@ public class Main {
 					// verifica se houve carga do arquivo procurando pela data da carga. Quando a carga não feita
 					// o campo de data fica vazio
 					if (dtHrArquivo == null) {
-						logger.warning("Download " + descDealer + " nao ocorreu por falta de carga do arquivo");
+						logger.warning("Download " + descDealer + " nao ocorreu por falta de carga do arquivo" + lineSeparator);
 					}
-
 				}
-
 			}
 
 			// Por fim, cria o arquivo final, copia o conteúdo para ele, salva e fecha
 			excel.gerarCsv(getDefaultCsvPath(), csvBiPath);
 			logger.info("Arquivo final do SIP gerado com sucesso!");
 
-
 		} catch (Exception e) {
-			//exLog = e;
+			exLog = e;
 			e.printStackTrace();
-			String exString = e.toString();
-			logger.severe(exString);
 
 		} finally {
-			
+
+			try {
+				logger.log(Level.SEVERE, "ERRO NA EXECUÇÃO: ", exLog);
+			} catch (Exception e) {}
 			long stopTime = System.nanoTime();
 			logger.info("Tempo total do processo: " + (((stopTime - startTime) / 1000000000) / 60) + " minutos.");
 			fh.close();
 			DateFormat dfLog = new SimpleDateFormat("yyyyMMdd_HHmm");
 			new File(defaultLogFile).renameTo(new File(csvBiPath + "\\log_" + dfLog.format(Calendar.getInstance().getTime()) + ".log"));
-			
 			// fecha as conexões com o driver
 			if (driver != null) {
 				driver.close();
@@ -344,16 +343,7 @@ public class Main {
 			// carrega o properties
 			in = new FileInputStream(propsFile);
 			prop.load(in);
-
-			Set<Object> keySet = prop.keySet();
 			logger.info("Arquivo '" + propertiesDefaultName + "' carregado com sucesso:");
-			for (Object obj : keySet) {
-				//pega o valor do sipUser
-				if (obj.equals("sipUser")) {
-					consUser = prop.getProperty((String) obj);
-				}
-				logger.info(obj + " = " + prop.getProperty((String) obj));
-			}
 
 		} catch (Exception e) {
 			String msg = "Erro ao carregar o arquivo de configuração '" + propertiesDefaultName + "' >>> " + e.getMessage();
@@ -368,7 +358,7 @@ public class Main {
 			}
 		}
 		return prop;
-		//retornar consUser, tratar a String para ler até |, para pegar o código da concessionaria, até ; para pegar código do usuário
+		// retornar consUser, tratar a String para ler até |, para pegar o código da concessionaria, até ; para pegar código do usuário
 	}
 
 	/**
@@ -389,12 +379,18 @@ public class Main {
 		p.setProperty(propertieUser, "srodrigues");
 		p.setProperty(propertiePass, "a1");
 		p.setProperty(propertieCsvPath, defaultCsvPath);
-		p.setProperty(propertieSipUser, "");
+		p.setProperty(propertieSipUser, "9|995;47|1782");
 
 		StringBuilder comentarios = new StringBuilder();
 		comentarios.append("O diretório padrão para salavar o CSV (" + propertieCsvPath + ") deve ser informado sempre com a \"barra para frente\" >> '/'.");
 		comentarios.append(StringUtils.CR + StringUtils.LF);
 		comentarios.append("Ex.: 'D:/LocalData/x888541/Documents'.");
+		comentarios.append(StringUtils.CR + StringUtils.LF);
+		comentarios.append("O conteúdo da variável sipUser deve ser preenchido com o código da concessionária, seguido por um separador '|' e o código do usuário.");
+		comentarios.append(StringUtils.CR + StringUtils.LF);
+		comentarios.append("Conjuntos de concessionária|usuário devem ser separados por ';'");
+		comentarios.append(StringUtils.CR + StringUtils.LF);
+		comentarios.append("Ex: 123|456;98|765");
 
 		p.store(out, comentarios.toString());
 
@@ -403,52 +399,35 @@ public class Main {
 		}
 
 	}
-	
-	private static void trataSipUser() {
-		//TODO passar o valor obtido em loadProperties
-		String teste = "9|995;47|1782;33|1900;2|234;";
-		String conj = "";
-		String next = "";
-		String cons = "";
-		String user = "";
-		
-		int counter = 0;
-		for( int i=0; i<teste.length(); i++ ) {
-		    if( teste.charAt(i) == ';' ) {
-		        counter++;
-		    } 
-		}
-		
-		System.out.println(counter);
-		
-		if (teste != "") {
-			for( int j=1; j<=counter; j++ ) {
-				if (teste != null) {
-					conj = teste.substring(0, teste.indexOf(';'));
-					next = teste.replace(conj+";", "");
-					//separa o código da concessionaria
-					cons = conj.substring(0, conj.indexOf('|'));
-					//separa o código do usuário
-					user = conj.substring(conj.indexOf('|')+1);
-					teste = next;
-					
-					System.out.println(conj);
-					System.out.println(cons);
-					System.out.println(user);
-					System.out.println(next);
-					
 
+	/**
+	 * Carga dos usuários de exceção
+	 * 
+	 * @throws Exception
+	 */
+	private static void trataSipUser() throws Exception {
+		try {
+			String teste = properties.getProperty(propertieSipUser);
+			if (teste != "") {
+				String[] dealers = StringUtils.split(teste, ";");
+				for (String str : dealers) {
+					String[] dados = StringUtils.split(str, "|");
 
-					
-					//TODO o programa deverá entender que na concessionária X, o usuário Y deve ser utilizado
+					String dlr = dados[0];
+					String usr = dados[1];
+
+					mapUsers.put(dlr, usr);
 				}
+				logger.info("Usuários de exceção carregados.");
+			} else {
+				logger.info("Não há usuários de exceção!");
 			}
-			logger.info("Usuários de exceção carregados.");
+
+		} catch (Exception e) {
+			String msg = "Erro ao ler a propertie '" + propertieSipUser + "' com os usuários de exceção do arquivo de properties >>> " + e.getMessage();
+			logger.severe(msg);
+			throw new Exception(msg);
 		}
-		else {
-			logger.info("Não há usuários de exceção!");
-		}
-		
 	}
 
 	/**
@@ -690,6 +669,8 @@ public class Main {
 	 * Pega a Data/Hora da Carga do Arquivo iterando por cada um dos usuários existentes para a concessionária em questão.<br>
 	 * Se achar em qualquer um deles já retornar, não vai até o fim. Se não teve carga para nenhum dos usuários, então retorna null.
 	 * 
+	 * @param codDealer
+	 * 
 	 * @param conc
 	 * 
 	 * @param driver
@@ -697,14 +678,21 @@ public class Main {
 	 * @throws InterruptedException
 	 * @throws ParseException
 	 */
-	private static Date getDataHoraCargaArquivo() throws InterruptedException, ParseException {
+	private static Date getDataHoraCargaArquivo(String codDealer) throws InterruptedException, ParseException {
 
 		List<User> users = optionsToUserList();
 
 		int ct = 0;
+		String codigo;
 		for (User u : users) {
 
-			String codigo = u.getCodigo();
+			String user = mapUsers.get(codDealer);
+
+			if (user != null) {
+				codigo = user;
+			} else {
+				codigo = u.getCodigo();
+			}
 
 			// ignora a opção '0'
 			if (!StringUtils.equalsIgnoreCase(codigo, "0")) {
@@ -719,7 +707,7 @@ public class Main {
 				// seleciona o usuário
 				js.executeScript("document.getElementById('formEmp:usuario').value = '" + codigo + "';");
 				js.executeScript("document.getElementById('formEmp:usuario').onchange();");
-				Thread.sleep(2000);
+				Thread.sleep(4000);
 
 				// Tenta achar a data e se achar já retorna, não vai para o próximo
 				Date dataHoraArquivo = tryToGetDataHoraByUser();
