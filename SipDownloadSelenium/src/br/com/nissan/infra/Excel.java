@@ -25,7 +25,6 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-
 public class Excel {
 
 	private StringBuilder sb;
@@ -33,9 +32,9 @@ public class Excel {
 	private boolean header = false;
 
 	private final String crLf = Character.toString((char) 13) + Character.toString((char) 10);
-		
+
 	private Logger logger;
-	
+
 	/**
 	 * método main para testes
 	 * 
@@ -43,10 +42,8 @@ public class Excel {
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws Exception {
-		
 
 		String csvPath = "D:\\LocalData\\xl02926\\Documents";
-		
 
 		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APJ JAPAN - 26.xls");
 
@@ -65,7 +62,8 @@ public class Excel {
 
 	/**
 	 * aponta sb como uma nova StringBuilder
-	 * @param logger 
+	 * 
+	 * @param logger
 	 */
 	public Excel(Logger logger) {
 		sb = new StringBuilder();
@@ -129,9 +127,8 @@ public class Excel {
 			}
 
 			/*
-			 * Contador vertical: enquanto o número da linha atual for menor que o número total de linhas, executa o contador horizontal. Contador horizontal: a cada passagem do contador vertical, realiza um
-			 * while que copia o conteúdo de cada célula até que o número do contador seja igual ao número de colunas + 2 (data/hora e bloqueio). No final, quebra a linha e começa a copiar a próxima, adicionando
-			 * 1 no cont
+			 * Contador vertical: enquanto o número da linha atual for menor que o número total de linhas, executa o contador horizontal. Contador horizontal: a cada passagem do contador vertical, realiza um while que copia o conteúdo de cada célula
+			 * até que o número do contador seja igual ao número de colunas + 2 (data/hora e bloqueio). No final, quebra a linha e começa a copiar a próxima, adicionando 1 no cont
 			 */
 
 			// CONTADOR VERTICAL
@@ -186,8 +183,6 @@ public class Excel {
 
 			out = new FileOutputStream(file);
 			wk.write(out);
-			
-			
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -222,7 +217,7 @@ public class Excel {
 			boolean c = CharUtils.isAsciiControl(indexString);
 			//
 			boolean c2 = indexString == ';' || indexString == '"' ? true : false;
-			//Verificação c=true ou c2=true
+			// Verificação c=true ou c2=true
 			if (c || c2) {
 				retorno = StringUtils.replace(retorno, ("" + charAt), "");
 			}
@@ -249,16 +244,17 @@ public class Excel {
 		try {
 
 			File file = new File(path);
-			if(!file.exists()) {
+			if (!file.exists()) {
 				file.createNewFile();
 			}
-			
+
 			// Força para salvar em ISO-8859-1
-			//Arquivo local
+			// Arquivo local
 			pw = new PrintWriter(file, "ISO-8859-1");
-			//Arquivo para o BI (caminho da pasta ainda sujeito a alteração)
-			pwBI = new PrintWriter(biFile + "ff_estoque_material_varejo.csv","ISO-8859-1");
 			
+			// Arquivo para o BI (caminho da pasta ainda sujeito a alteração)
+			pwBI = new PrintWriter(biFile + "ff_estoque_material_varejo.csv", "ISO-8859-1");
+
 			pw.write(sb.toString());
 			pwBI.write(sb.toString());
 
@@ -268,10 +264,10 @@ public class Excel {
 
 		} finally {
 			try {
-				if (pw != null && pwBI !=null) {
+				if (pw != null && pwBI != null) {
 					pw.flush();
 					pw.close();
-					
+
 					pwBI.flush();
 					pwBI.close();
 				}
