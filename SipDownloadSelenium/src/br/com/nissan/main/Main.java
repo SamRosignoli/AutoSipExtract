@@ -47,7 +47,7 @@ public class Main {
 	private static Logger logger = Logger.getLogger("SipLog");
 	private static FileHandler fh = null;
 	private static final String defaultLogFile = System.getProperty("user.home") + "\\log.log";
-	
+
 	private static String lineSeparator = System.getProperty("line.separator");
 
 	private static HashMap<String, String> mapUsers = new HashMap<String, String>();
@@ -60,8 +60,6 @@ public class Main {
 	private static String downloadFilepath;
 
 	private static String csvBiPath;
-
-	private static String consUser;
 
 	private static Properties properties;
 
@@ -109,7 +107,7 @@ public class Main {
 
 			// abre o Chrome já com as opções configuradas (Ex.: maximizado)
 			driver = new ChromeDriver(getChromeOptions());
-			
+
 			// possibilita a execução de javascript
 			// faz todas as operações através de javascript por ser mais robusto que o método driver.click()
 			// o método driver.click() só funciona se estiver com a janela do browser ativa e com o elemento visível
@@ -166,7 +164,7 @@ public class Main {
 						boolean pesquisaOk = waitPesquisar();
 						if (!pesquisaOk) {
 							// Log aqui da concessionária que não conseguiu executar a pesquisa depois de 5mn (300seg)
-							logger.warning("Nao foi possivel realizar a pesquisa para a concessionária " + descDealer + " porque excedeu o tempo de 5min para retornar resultado."+ lineSeparator);
+							logger.warning("Nao foi possivel realizar a pesquisa para a concessionária " + descDealer + " porque excedeu o tempo de 5min para retornar resultado." + lineSeparator);
 							continue;
 						}
 
@@ -242,7 +240,8 @@ public class Main {
 
 			try {
 				logger.log(Level.SEVERE, "ERRO NA EXECUÇÃO: ", exLog);
-			} catch (Exception e) {}
+			} catch (Exception e) {
+			}
 			long stopTime = System.nanoTime();
 			logger.info("Tempo total do processo: " + (((stopTime - startTime) / 1000000000) / 60) + " minutos.");
 			fh.close();
@@ -358,7 +357,6 @@ public class Main {
 			}
 		}
 		return prop;
-		// retornar consUser, tratar a String para ler até |, para pegar o código da concessionaria, até ; para pegar código do usuário
 	}
 
 	/**
