@@ -46,7 +46,7 @@ public class Main {
 
 	private static Logger logger = Logger.getLogger("SipLog");
 	private static FileHandler fh = null;
-	private static final String defaultLogFile = System.getProperty("user.home") + "\\log.log";
+	private static final String defaultLogFile = System.getProperty("user.dir") + "\\log.log";
 
 	private static String lineSeparator = System.getProperty("line.separator");
 
@@ -66,11 +66,13 @@ public class Main {
 	public static void main(String[] args) {
 
 		// pega o tempo do sistema em nanosegundos
-		long startTime = System.nanoTime();
+		long startTime = 0;
 
 		Exception exLog = null;
 
 		try {
+			
+			startTime = System.nanoTime();
 
 			confLogger();
 
@@ -294,17 +296,18 @@ public class Main {
 
 		String projectDir = System.getProperty("user.dir");
 
-		int lastIndexOf = projectDir.lastIndexOf("\\");
-		String diretorio = StringUtils.substring(projectDir, 0, lastIndexOf);
+		// int lastIndexOf = projectDir.lastIndexOf("\\");
+		// String diretorio = StringUtils.substring(projectDir, 0, lastIndexOf);
+		
 		// cria o diretorio se ainda não existir
-		File f = new File(diretorio);
+		File f = new File(projectDir);
 		if (!f.exists()) {
-			String msg = "Não foi possível encontrar o diretório '" + diretorio + "' para gerar o arquivo '" + propertiesDefaultName + "'.";
+			String msg = "Não foi possível encontrar o diretório '" + projectDir + "' para gerar o arquivo '" + propertiesDefaultName + "'.";
 			logger.severe(msg);
 			throw new Exception(msg);
 		}
 
-		String propsPath = diretorio + File.separator + propertiesDefaultName;
+		String propsPath = projectDir + File.separator + propertiesDefaultName;
 		File propsFile = new File(propsPath);
 		if (!propsFile.exists()) {
 			try {
@@ -461,7 +464,7 @@ public class Main {
 	}
 
 	private static String getDefaultCsvPath() {
-		return System.getProperty("user.home") + "\\Sip Csv Final\\";
+		return System.getProperty("user.dir") + "\\Sip Csv Final\\";
 	}
 
 	/**
@@ -642,7 +645,7 @@ public class Main {
 	 */
 	private static String getDownloadFilepath() throws Exception {
 
-		String userHome = System.getProperty("user.home");
+		String userHome = System.getProperty("user.dir");
 
 		File theDir = new File(userHome + "\\Sip Extract");
 
@@ -795,7 +798,7 @@ public class Main {
 	 */
 	private static String getDriverPath() throws Exception {
 
-		String userHome = System.getProperty("user.home");
+		String userHome = System.getProperty("user.dir");
 
 		String diretorio = userHome + File.separator + "ChromeDriver";
 

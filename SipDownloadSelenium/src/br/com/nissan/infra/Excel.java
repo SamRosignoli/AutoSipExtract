@@ -41,25 +41,25 @@ public class Excel {
 	 * @param args
 	 * @throws Exception
 	 */
-	public static void main(String[] args) throws Exception {
-
-		String csvPath = "D:\\LocalData\\xl02926\\Documents";
-
-		File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APJ JAPAN - 26.xls");
-
-		Date date = DateUtils.parseDate("03/10/2017 14:30", "dd/MM/yyyy HH:mm");
-
-		Excel e = new Excel(Logger.getLogger("SipLog"));
-		e.incluirColunaDataHora(date, newFile);
-
-		e.gerarCsv(csvPath, "");
-
-		String teste = null;
-		@SuppressWarnings("unused")
-		String retorno = e.trataString(teste);
-
-	}
-
+	/*
+	 * public static void main(String[] args) throws Exception {
+	 * 
+	 * String csvPath = "D:\\LocalData\\xl02926\\Documents";
+	 * 
+	 * File newFile = new File("C:\\Users\\xl02926\\Sip Extract\\APJ JAPAN - 26.xls");
+	 * 
+	 * Date date = DateUtils.parseDate("03/10/2017 14:30", "dd/MM/yyyy HH:mm");
+	 * 
+	 * Excel e = new Excel(Logger.getLogger("SipLog")); e.incluirColunaDataHora(date, newFile);
+	 * 
+	 * e.gerarCsv(csvPath, "");
+	 * 
+	 * String teste = null;
+	 * 
+	 * @SuppressWarnings("unused") String retorno = e.trataString(teste);
+	 * 
+	 * }
+	 */
 	/**
 	 * aponta sb como uma nova StringBuilder
 	 * 
@@ -251,7 +251,7 @@ public class Excel {
 			// Força para salvar em ISO-8859-1
 			// Arquivo local
 			pw = new PrintWriter(file, "ISO-8859-1");
-			
+
 			// Arquivo para o BI (caminho da pasta ainda sujeito a alteração)
 			pwBI = new PrintWriter(biFile + "ff_estoque_material_varejo.csv", "ISO-8859-1");
 
@@ -277,96 +277,62 @@ public class Excel {
 		}
 	}
 
-	// CÓDIGO ABAIXO NÃO UTILIZADO, SOMENTE EXEMPLO
-
 	/**
 	 * Gera um arquivo 'xlsx'. Por isso deve-se usar XSSF
 	 */
-	public File gerarArquivoUnico() {
-
-		XSSFWorkbook wb = new XSSFWorkbook();
-
-		XSSFSheet sheet = wb.createSheet("Itens de Reemplazo");
-
-		int rowCount = -1;
-		int columnCount = -1;
-		XSSFRow row = null;
-		XSSFCell cell = null;
-
-		/*************** header ****************/
-		row = sheet.createRow(++rowCount);
-		columnCount = -1;
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("Referência");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("Descrição da Referência");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("Código de Reemplazo do Item");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("Descrição Única do Item c/ Reemplazo");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("Qtde Referencias");
-		/*************** header ****************/
-
-		/*************** body ****************/
-		row = sheet.createRow(++rowCount);
-		columnCount = -1;
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue("");
-
-		cell = row.createCell(++columnCount);
-		cell.setCellType(CellType.NUMERIC);
-		/*************** body ****************/
-
-		File file = null;
-		FileOutputStream os = null;
-
-		try {
-
-			file = new File("");
-			os = new FileOutputStream(file);
-
-			wb.write(os);
-
-		} catch (Exception e) {
-			JOptionPane.showMessageDialog(null, "Erro ao gravar o arquivo final Excel:\n" + e.getMessage(), "PAR.TAR - Agrupamento Itens de Reemplazo", JOptionPane.ERROR_MESSAGE);
-			System.exit(0);
-		} finally {
-			try {
-				wb.close();
-				os.flush();
-				os.close();
-			} catch (Exception e) {
-				// e.printStackTrace();
-			}
-		}
-
-		return file;
-
-	}
-
+	/*
+	 * public File gerarArquivoUnico() {
+	 * 
+	 * XSSFWorkbook wb = new XSSFWorkbook();
+	 * 
+	 * XSSFSheet sheet = wb.createSheet("Itens de Reemplazo");
+	 * 
+	 * int rowCount = -1; int columnCount = -1; XSSFRow row = null; XSSFCell cell = null;
+	 * 
+	 *//*************** header ****************/
+	/*
+	 * row = sheet.createRow(++rowCount); columnCount = -1;
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("Referência");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("Descrição da Referência");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("Código de Reemplazo do Item");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("Descrição Única do Item c/ Reemplazo");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("Qtde Referencias");
+	 *//*************** header ****************/
+	/*
+	
+	*//*************** body ****************/
+	/*
+	 * row = sheet.createRow(++rowCount); columnCount = -1;
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.STRING); cell.setCellValue("");
+	 * 
+	 * cell = row.createCell(++columnCount); cell.setCellType(CellType.NUMERIC);
+	 *//*************** body ****************//*
+												 * 
+												 * File file = null; FileOutputStream os = null;
+												 * 
+												 * try {
+												 * 
+												 * file = new File(""); os = new FileOutputStream(file);
+												 * 
+												 * wb.write(os);
+												 * 
+												 * } catch (Exception e) { JOptionPane.showMessageDialog(null, "Erro ao gravar o arquivo final Excel:\n" + e.getMessage(), "PAR.TAR - Agrupamento Itens de Reemplazo", JOptionPane.ERROR_MESSAGE);
+												 * System.exit(0); } finally { try { wb.close(); os.flush(); os.close(); } catch (Exception e) { // e.printStackTrace(); } }
+												 * 
+												 * return file;
+												 * 
+												 * }
+												 */
 }
