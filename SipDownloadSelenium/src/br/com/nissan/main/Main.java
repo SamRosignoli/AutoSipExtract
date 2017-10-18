@@ -121,7 +121,6 @@ public class Main {
 			login();
 			logger.info("Login OK.");
 			Thread.sleep(2000);
-
 			// Iteração em todas as concessionárias existentes no Select da página para baixar o arquivo analítico
 			// Já que no Selenium não é possível acessar um WebElement depois de um refresh na página em uma iteração, guarda o Set de concessionárias antes para conseguir iterar depois.
 			List<Concessionaria> set = optionsToDealerList();
@@ -239,7 +238,9 @@ public class Main {
 		} finally {
 
 			try {
-				logger.log(Level.SEVERE, "ERRO NA EXECUÇÃO: ", exLog);
+				if (exLog != null) {
+					logger.log(Level.SEVERE, "ERRO NA EXECUÇÃO: ", exLog);
+				}
 			} catch (Exception e) {
 			}
 			long stopTime = System.nanoTime();
@@ -454,13 +455,13 @@ public class Main {
 			}
 		}
 
-		String csvPath = dir.getAbsolutePath();
+		String csvPath = dir.getAbsolutePath() + "\\";
 
 		return csvPath;
 	}
 
 	private static String getDefaultCsvPath() {
-		return System.getProperty("user.home") + "\\Sip Csv Final";
+		return System.getProperty("user.home") + "\\Sip Csv Final\\";
 	}
 
 	/**
@@ -496,7 +497,7 @@ public class Main {
 	 * Também, para evitar que entre em um 'Loop Eterno', tenta clicar novamente em Pesquisar depois de um certo tempo (a cada 1,20mn - 80 segundos).<br>
 	 * <br>
 	 * 
-	 * Caso fique mais de 5mn parado no loop, passa para o próximo dealer!
+	 * Caso fique mais de 5min parado no loop, passa para o próximo dealer!
 	 * 
 	 */
 	private static boolean waitPesquisar() {
