@@ -122,7 +122,7 @@ public class Main {
 			logger.info("Login no SIP.");
 			login();
 			logger.info("Login OK.");
-			Thread.sleep(2000);
+			Thread.sleep(7000);
 			// Iteração em todas as concessionárias existentes no Select da página para baixar o arquivo analítico
 			// Já que no Selenium não é possível acessar um WebElement depois de um refresh na página em uma iteração, guarda o Set de concessionárias antes para conseguir iterar depois.
 			List<Concessionaria> set = optionsToDealerList();
@@ -140,7 +140,7 @@ public class Main {
 					if (ct++ > 0) {
 						// para trocar de concessionária tem de obrigatoriamente clicar na home do SIP antes
 						driver.get("http://sipnissan.com.br/Sip/jsf_pages/home.jsf");
-						Thread.sleep(2000);
+						Thread.sleep(4000);
 					}
 
 					// Seleciona a concessionária e aguarda carregar
@@ -151,7 +151,7 @@ public class Main {
 					// Seleciona o usuário e extrai a Data/Hora da Carga do Arquivo
 					// tenta até o último usuário, se não houver, retorna nulo/vazio
 					Date dtHrArquivo = getDataHoraCargaArquivo(codDealer);
-					Thread.sleep(1000);
+					Thread.sleep(2000);
 
 					// Se não houve carga de arquivo, ignora e parte para o próximo
 					if (dtHrArquivo != null) {
@@ -203,7 +203,7 @@ public class Main {
 									driver.navigate().back();
 									logger.info("Nova tentativa...");
 								}
-								Thread.sleep(3000);
+								Thread.sleep(5000);
 							}
 							count++;
 						}
@@ -519,7 +519,7 @@ public class Main {
 				ctToClick++;
 				if (ctToClick == 80 || ctToClick == 160 || ctToClick == 240) {
 					clickPesquisar();
-					Thread.sleep(1000);
+					Thread.sleep(2000);
 				}
 
 				if (ctToClick == 300) {
@@ -703,7 +703,7 @@ public class Main {
 					// para trocar de usuário tem de obrigatoriamente clicar na home do SIP antes
 					// driver.findElement(By.id("j_idt29:j_idt30")).click();
 					js.executeScript("document.getElementById('j_idt29:j_idt30').click();");
-					Thread.sleep(2000);
+					Thread.sleep(3000);
 				}
 
 				// seleciona o usuário
